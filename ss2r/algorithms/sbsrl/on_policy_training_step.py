@@ -60,6 +60,7 @@ def make_on_policy_training_step(
     ensemble_size,
     sac_batch_size,
     normalize_fn,
+    separate_critics,
 ) -> TrainingStepFn:
     def split_transitions_ensemble(
         transitions: Transition, ensemble_axis: int = 1
@@ -167,7 +168,7 @@ def make_on_policy_training_step(
                 backup_qr_optimizer_state,
             ) = backup_critic_update(
                 training_state.backup_qr_params,
-                training_state.behavior_policy_params,  # TODO: Is it correct to use a common policy for backup and behavior?
+                training_state.behavior_policy_params,
                 training_state.normalizer_params,
                 training_state.backup_target_qr_params,
                 alpha,
@@ -188,24 +189,55 @@ def make_on_policy_training_step(
                 key, key_cost = jax.random.split(key)
                 _, *ens_keys_cost = jax.random.split(key_cost, ensemble_size + 1)
                 ens_keys_cost = jnp.stack(ens_keys_cost)
-                (
-                    cost_loss,
-                    behavior_qc_params,
-                    behavior_qc_optimizer_state,
-                ) = cost_critic_update(
-                    training_state.behavior_qc_params,
-                    training_state.behavior_policy_params,
-                    training_state.normalizer_params,
-                    training_state.behavior_target_qc_params,
-                    alpha,
-                    trans_per_ens,
-                    ens_keys_cost,
-                    cost_q_transform,
-                    safe,
-                    uncertainty_constraint,
-                    optimizer_state=training_state.behavior_qc_optimizer_state,
-                    params=training_state.behavior_qc_params,
-                )
+
+                if not separate_critics:
+                    (
+                        cost_loss,
+                        behavior_qc_params,
+                        behavior_qc_optimizer_state,
+                    ) = cost_critic_update(
+                        training_state.behavior_qc_params,
+                        training_state.behavior_policy_params,
+                        training_state.normalizer_params,
+                        training_state.behavior_target_qc_params,
+                        alpha,
+                        trans_per_ens,
+                        ens_keys_cost,
+                        cost_q_transform,
+                        safe,
+                        uncertainty_constraint,
+                        optimizer_state=training_state.behavior_qc_optimizer_state,
+                        params=training_state.behavior_qc_params,
+                    )
+                else:
+                    per_member_vmap = jax.vmap(
+                        lambda p_i, opt_i, trans_i, key_i, tq_i: cost_critic_update(
+                            p_i,
+                            training_state.behavior_policy_params,
+                            training_state.normalizer_params,
+                            tq_i,
+                            alpha,
+                            trans_i,
+                            key_i,
+                            cost_q_transform,
+                            safe,
+                            uncertainty_constraint,
+                            optimizer_state=opt_i,
+                            params=p_i,
+                        ),
+                        in_axes=(0, 0, 0, 0, 0),
+                    )
+                    (
+                        cost_loss,
+                        behavior_qc_params,
+                        behavior_qc_optimizer_state,
+                    ) = per_member_vmap(
+                        training_state.behavior_qc_params,
+                        training_state.behavior_qc_optimizer_state,
+                        trans_per_ens,
+                        ens_keys_cost,
+                        training_state.behavior_target_qc_params,
+                    )
                 cost_metrics["behavior_cost_critic_loss"] = cost_loss
             else:
                 behavior_qc_params = training_state.behavior_qc_params

@@ -194,6 +194,61 @@ def make_q_network_ensemble(
     )
 
 
+def make_q_network_separate(
+    obs_size: types.ObservationSize,
+    action_size: int,
+    preprocess_observations_fn: types.PreprocessObservationFn = types.identity_observation_preprocessor,
+    hidden_layer_sizes: Sequence[int] = (256, 256),
+    activation: ActivationFn = linen.relu,
+    n_critics: int = 2,
+    obs_key: str = "state",
+    use_bro: bool = True,
+    n_heads: int = 1,
+    head_size: int = 1,
+    ensemble_size: int = 10,
+    embedding_dim: int = 4,
+) -> networks.FeedForwardNetwork:
+    """Creates a value network."""
+
+    class QModule(linen.Module):
+        """Q Module."""
+
+        n_critics: int
+
+        @linen.compact
+        def __call__(self, obs: jnp.ndarray, actions: jnp.ndarray, idx: jnp.ndarray):
+            hidden = jnp.concatenate([obs, actions], axis=-1)
+
+            res = []
+            net = BroNet if use_bro else MLP
+            for _ in range(self.n_critics):
+                q = net(  # type: ignore
+                    layer_sizes=list(hidden_layer_sizes) + [head_size],
+                    activation=activation,
+                    kernel_init=jax.nn.initializers.lecun_uniform(),
+                    num_heads=n_heads,
+                )(hidden)
+                res.append(q)
+            return jnp.concatenate(res, axis=-1)
+
+    q_module = QModule(n_critics=n_critics)
+
+    def apply(processor_params, q_params, obs, actions, idx):
+        obs = preprocess_observations_fn(obs, processor_params)
+        obs = obs if isinstance(obs, jax.Array) else obs[obs_key]
+        idx = jnp.asarray(idx, dtype=jnp.int32)
+        return q_module.apply(q_params, obs, actions, idx)
+
+    obs_size = _get_obs_state_size(obs_size, obs_key)
+    dummy_obs = jnp.zeros((1, obs_size))
+    dummy_action = jnp.zeros((1, action_size))
+    dummy_idx = jnp.zeros((1,), dtype=jnp.int32)
+    return networks.FeedForwardNetwork(
+        init=lambda key: q_module.init(key, dummy_obs, dummy_action, dummy_idx),
+        apply=apply,
+    )
+
+
 def make_sbsrl_networks(
     observation_size: types.ObservationSize,
     action_size: int,
@@ -213,6 +268,7 @@ def make_sbsrl_networks(
     save_sooper_backup: bool = False,
     ensemble_size: int = 10,
     embedding_dim: int = 4,
+    separate_critics: bool = False,
 ) -> SBSRLNetworks:
     parametric_action_distribution = distribution.NormalTanhDistribution(
         event_size=action_size
@@ -240,20 +296,36 @@ def make_sbsrl_networks(
     )
     if safe or uncertainty_constraint:
         n_outputs_qc = int(safe) + int(uncertainty_constraint)
-        qc_network = make_q_network_ensemble(
-            observation_size,
-            action_size,
-            preprocess_observations_fn=preprocess_observations_fn,
-            hidden_layer_sizes=value_hidden_layer_sizes,
-            activation=activation,
-            obs_key=value_obs_key,
-            use_bro=use_bro,
-            n_critics=n_critics,
-            n_heads=n_heads,
-            ensemble_size=ensemble_size,
-            embedding_dim=embedding_dim,
-            head_size=n_outputs_qc,
-        )
+        if separate_critics:
+            qc_network = make_q_network_separate(
+                observation_size,
+                action_size,
+                preprocess_observations_fn=preprocess_observations_fn,
+                hidden_layer_sizes=value_hidden_layer_sizes,
+                activation=activation,
+                obs_key=value_obs_key,
+                use_bro=use_bro,
+                n_critics=n_critics,
+                n_heads=n_heads,
+                ensemble_size=ensemble_size,
+                embedding_dim=embedding_dim,
+                head_size=n_outputs_qc,
+            )
+        else:
+            qc_network = make_q_network_ensemble(
+                observation_size,
+                action_size,
+                preprocess_observations_fn=preprocess_observations_fn,
+                hidden_layer_sizes=value_hidden_layer_sizes,
+                activation=activation,
+                obs_key=value_obs_key,
+                use_bro=use_bro,
+                n_critics=n_critics,
+                n_heads=n_heads,
+                ensemble_size=ensemble_size,
+                embedding_dim=embedding_dim,
+                head_size=n_outputs_qc,
+            )
         old_apply = qc_network.apply
         qc_network.apply = lambda *args, **kwargs: jnn.softplus(
             old_apply(*args, **kwargs)
