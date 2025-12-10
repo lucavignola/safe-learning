@@ -271,6 +271,7 @@ def train(
     target_entropy: float | None = None,
     pessimistic_q: bool = False,
     separate_critics: bool = False,
+    load_data: bool = False,
 ):
     if min_replay_size >= num_timesteps:
         raise ValueError(
@@ -504,6 +505,8 @@ def train(
                 else None,
             )
         else:
+            if load_data:
+                model_buffer_state = replay_buffers.ReplayBufferState(**params[-1])
             policy_optimizer_state = restore_state(
                 params[6][1]["inner_state"]
                 if isinstance(params[6][1], dict)
@@ -859,7 +862,7 @@ def train(
     # Create and initialize the replay buffer.
     t = time.time()
     prefill_key, local_key = jax.random.split(local_key)
-    if not offline:
+    if not (offline or load_data):
         training_state, env_state, model_buffer_state, _ = prefill_replay_buffer(
             training_state, env_state, model_buffer_state, prefill_key
         )
