@@ -62,3 +62,4 @@ load_disagreement_normalizer: false
 pessimistic_cost: false
 separate_critics: false
 load_data: false
+optimistic_qr: false

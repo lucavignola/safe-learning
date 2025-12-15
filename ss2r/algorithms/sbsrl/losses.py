@@ -56,6 +56,7 @@ def make_losses(
     flip_uncertainty_constraint,
     target_entropy: float | None = None,
     separate_critics: bool = False,
+    optimistic_qr: bool = False,
 ):
     target_entropy = -0.5 * action_size if target_entropy is None else target_entropy
     policy_network = sbsrl_network.policy_network
@@ -244,6 +245,8 @@ def make_losses(
             qr = jnp.min(qr_action, axis=-1)
         qr /= reward_scaling
         actor_loss = -qr.mean()
+        if optimistic_qr:
+            actor_loss = -jnp.max(jnp.mean(qr, axis=-1))
         exploration_loss = (alpha * log_prob).mean()
 
         aux = {}

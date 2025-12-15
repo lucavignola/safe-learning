@@ -272,6 +272,7 @@ def train(
     pessimistic_q: bool = False,
     separate_critics: bool = False,
     load_data: bool = False,
+    optimistic_qr: bool = False,
 ):
     if min_replay_size >= num_timesteps:
         raise ValueError(
@@ -594,6 +595,7 @@ def train(
         flip_uncertainty_constraint=flip_uncertainty_constraint,
         target_entropy=target_entropy,
         separate_critics=separate_critics,
+        optimistic_qr=optimistic_qr,
     )
     alpha_update = (
         gradients.gradient_update_fn(  # pytype: disable=wrong-arg-types  # jax-ndarray
