@@ -452,9 +452,10 @@ def make_on_policy_training_step(
                 transitions.reward.shape, disagreement
             )  # (B,ensemble_size)
             disagreement_metrics = {"normalized_disagreement": disagreement.mean()}
-            disagreement_metrics["model_stage_cost"] = transitions.extras[
-                "state_extras"
-            ]["cost"]
+            if safe:
+                disagreement_metrics["model_stage_cost"] = transitions.extras[
+                    "state_extras"
+                ]["cost"]
         sac_replay_buffer_state = sac_replay_buffer.insert(
             sac_replay_buffer_state, float16(transitions)
         )
@@ -576,7 +577,8 @@ def make_on_policy_training_step(
             training_key = key
         model_buffer_state, transitions = model_replay_buffer.sample(model_buffer_state)
         cost_metrics = {}
-        cost_metrics["real_stage_cost"] = transitions.extras["state_extras"]["cost"]
+        if safe:
+            cost_metrics["real_stage_cost"] = transitions.extras["state_extras"]["cost"]
         # Change the front dimension of transitions so 'update_step' is called
         # grad_updates_per_step times by the scan.
         tmp_transitions = jax.tree_util.tree_map(
