@@ -2,7 +2,7 @@
 defaults:
   - override /environment: humanoid_walk
   - override /agent: sbsrl
-  - override /agent/data_collection: episodic #TODO: check
+  - override /agent/data_collection: episodic
   - override /agent/cost_robustness: pessimistic_cost_update
   - override /agent/penalizer: multiaug_lagrangian
   - _self_
@@ -16,7 +16,7 @@ training:
   safety_budget: 100
   num_envs: 1
   num_evals: 20
-  wandb_id: z3518n9m
+  wandb_id: d86pp03b #,dq5j9oyp,mx0swj7w,om3hajjk,xyurk68y
 
 agent:
   policy_hidden_layer_sizes: [256, 256, 256]
@@ -44,7 +44,9 @@ agent:
   cost_robustness: null
   safety_discounting: 0.999
   normalize_budget: false
+  separate_critics: true
+  optimistic_qr: true
   penalizer:
-    lagrange_multiplier: 5
+    lagrange_multiplier: 0.5
     penalty_multiplier: 0.001
     penalty_multiplier_factor: 1e-4
