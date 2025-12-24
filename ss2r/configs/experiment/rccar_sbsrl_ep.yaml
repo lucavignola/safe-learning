@@ -2,7 +2,7 @@
 defaults:
   - override /environment: rccar_real
   - override /agent: sbsrl
-  - override /agent/cost_robustness: pessimistic_cost_update
+
   - override /agent/data_collection: episodic
   - override /agent/penalizer: multiaug_lagrangian
   - _self_
@@ -57,7 +57,6 @@ agent:
     penalty_multiplier: 1e-3
     penalty_multiplier_factor: 1e-4
 
-  cost_robustness: null
 
 
 
