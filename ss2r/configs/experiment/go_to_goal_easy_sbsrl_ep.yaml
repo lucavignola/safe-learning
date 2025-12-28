@@ -15,7 +15,7 @@ training:
   action_repeat: 4
   num_envs: 1
   num_evals: 20
-  wandb_id: 7v4m2d6t
+  wandb_id: be5glx0u #,naysr4ow,p14k5175,0mzh8epy,km2chbf8
 
 agent:
   policy_hidden_layer_sizes: [256, 256, 256]
