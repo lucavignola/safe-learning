@@ -218,6 +218,7 @@ def make_losses(
         safety_budget: float,
         penalizer: Penalizer | None,
         penalizer_params: Any,
+        backup_qc_params: Params | None,
     ) -> jnp.ndarray:
         dist_params = policy_network.apply(
             normalizer_params, policy_params, transitions.observation
@@ -277,6 +278,13 @@ def make_losses(
                         ),
                     )
                 )(idxs)  # (E, B, n_critics*head_size)
+            if save_sooper_backup:
+                assert backup_qc_network is not None
+                qc_backup = backup_qc_network.apply(
+                    normalizer_params, backup_qc_params, transitions.observation, action
+                )
+                qc_backup = jnp.mean(qc_backup)
+                aux["qc_backup"] = qc_backup
             qc_action = qc_action.reshape(
                 ensemble_size, -1, n_critics, int(safe) + int(uncertainty_constraint)
             )  # -> (E, B, n_critics, head_size)
