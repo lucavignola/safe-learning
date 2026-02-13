@@ -273,6 +273,7 @@ def train(
     separate_critics: bool = False,
     load_data: bool = False,
     optimistic_qr: bool = False,
+    ensemble_index: int = -1,
 ):
     if min_replay_size >= num_timesteps:
         raise ValueError(
@@ -699,6 +700,7 @@ def train(
         sac_batch_size,
         disagreement_normalize_fn,
         separate_critics,
+        ensemble_index,
     )
 
     def prefill_replay_buffer(
