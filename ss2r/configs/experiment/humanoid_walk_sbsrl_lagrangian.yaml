@@ -15,7 +15,7 @@ training:
   safety_budget: 100
   num_envs: 1
   num_evals: 20
-  wandb_id: d86pp03b #,dq5j9oyp,mx0swj7w,om3hajjk,xyurk68y
+  wandb_id: 13rni74f #,jdm2hwk3,vv3cfif1,pecdgnor,35hhiyfg
 
 agent:
   policy_hidden_layer_sizes: [256, 256, 256]
@@ -45,6 +45,6 @@ agent:
   separate_critics: true
   optimistic_qr: true
   penalizer:
-    lagrange_multiplier: 0.5
+    lagrange_multiplier: 0.5 #range 0.01-2.5
     penalty_multiplier: 0.001
     penalty_multiplier_factor: 1e-4
