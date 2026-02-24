@@ -112,6 +112,7 @@ def _init_training_state(
     model_ensemble_size: int,
     embedding_dim: int,
     penalizer_params: Params | None,
+    separate_critics: bool,
 ) -> TrainingState:
     """Inits the training state and replicates it over devices."""
     key_policy, key_qr, key_model = jax.random.split(key, 3)
@@ -126,9 +127,19 @@ def _init_training_state(
     model_params = init_model_ensemble(model_keys)
     model_optimizer_state = model_optimizer.init(model_params)
     if sbsrl_network.qc_network is not None:
-        behavior_qc_params = sbsrl_network.qc_network.init(key_qr)
-        assert qc_optimizer is not None
-        behavior_qc_optimizer_state = qc_optimizer.init(behavior_qc_params)
+        if separate_critics:
+            keys = jax.random.split(key_qr, model_ensemble_size)
+            behavior_qc_params = jax.vmap(lambda k: sbsrl_network.qc_network.init(k))(
+                keys
+            )
+            assert qc_optimizer is not None
+            behavior_qc_optimizer_state = jax.vmap(lambda p: qc_optimizer.init(p))(
+                behavior_qc_params
+            )
+        else:
+            behavior_qc_params = sbsrl_network.qc_network.init(key_qr)
+            assert qc_optimizer is not None
+            behavior_qc_optimizer_state = qc_optimizer.init(behavior_qc_params)
     else:
         behavior_qc_params = None
         behavior_qc_optimizer_state = None
@@ -259,6 +270,10 @@ def train(
     learn_from_scratch: bool = False,
     target_entropy: float | None = None,
     pessimistic_q: bool = False,
+    separate_critics: bool = False,
+    load_data: bool = False,
+    optimistic_qr: bool = False,
+    ensemble_index: int = -1,
 ):
     if min_replay_size >= num_timesteps:
         raise ValueError(
@@ -393,6 +408,7 @@ def train(
         model_ensemble_size=model_ensemble_size,
         embedding_dim=embedding_dim,
         penalizer_params=penalizer_params,
+        separate_critics=separate_critics,
     )
     del global_key
     local_key, model_rb_key, actor_critic_rb_key, env_key, eval_key = jax.random.split(
@@ -491,6 +507,8 @@ def train(
                 else None,
             )
         else:
+            if load_data:
+                model_buffer_state = replay_buffers.ReplayBufferState(**params[-1])
             policy_optimizer_state = restore_state(
                 params[6][1]["inner_state"]
                 if isinstance(params[6][1], dict)
@@ -551,6 +569,7 @@ def train(
     (
         alpha_loss,
         critic_loss,
+        critic_loss_separate,
         actor_loss,
         model_loss,
         backup_critic_loss,
@@ -576,6 +595,8 @@ def train(
         offline=offline,
         flip_uncertainty_constraint=flip_uncertainty_constraint,
         target_entropy=target_entropy,
+        separate_critics=separate_critics,
+        optimistic_qr=optimistic_qr,
     )
     alpha_update = (
         gradients.gradient_update_fn(  # pytype: disable=wrong-arg-types  # jax-ndarray
@@ -588,9 +609,14 @@ def train(
         )
     )
     if safe or uncertainty_constraint:
-        cost_critic_update = gradients.gradient_update_fn(  # pytype: disable=wrong-arg-types  # jax-ndarray
-            critic_loss, qc_optimizer, pmap_axis_name=None
-        )
+        if separate_critics:
+            cost_critic_update = gradients.gradient_update_fn(
+                critic_loss_separate, qc_optimizer, pmap_axis_name=None
+            )
+        else:
+            cost_critic_update = gradients.gradient_update_fn(  # pytype: disable=wrong-arg-types  # jax-ndarray
+                critic_loss, qc_optimizer, pmap_axis_name=None
+            )
     else:
         cost_critic_update = None
     model_update = (
@@ -673,6 +699,8 @@ def train(
         model_ensemble_size,
         sac_batch_size,
         disagreement_normalize_fn,
+        separate_critics,
+        ensemble_index,
     )
 
     def prefill_replay_buffer(
@@ -838,7 +866,7 @@ def train(
     # Create and initialize the replay buffer.
     t = time.time()
     prefill_key, local_key = jax.random.split(local_key)
-    if not offline:
+    if not (offline or load_data):
         training_state, env_state, model_buffer_state, _ = prefill_replay_buffer(
             training_state, env_state, model_buffer_state, prefill_key
         )

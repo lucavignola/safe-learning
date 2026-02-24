@@ -60,6 +60,8 @@ def make_on_policy_training_step(
     ensemble_size,
     sac_batch_size,
     normalize_fn,
+    separate_critics,
+    ensemble_index,
 ) -> TrainingStepFn:
     def split_transitions_ensemble(
         transitions: Transition, ensemble_axis: int = 1
@@ -99,7 +101,7 @@ def make_on_policy_training_step(
         return trans_per_ens
 
     def compress_transitions_ensemble(
-        transitions: Transition, ensemble_axis: int = 1
+        transitions: Transition, ensemble_index, ensemble_axis: int = 1
     ) -> Transition:
         def _reduce_leaf(x: Any, name: str):
             if isinstance(x, dict):
@@ -107,6 +109,8 @@ def make_on_policy_training_step(
             x_arr = jnp.asarray(x)
             if name in ("observation", "action"):
                 return x_arr
+            if ensemble_index != -1:
+                return jnp.take(x_arr, ensemble_index, axis=ensemble_axis)
             return jnp.mean(x_arr, axis=ensemble_axis)
 
         replacements = {
@@ -159,7 +163,7 @@ def make_on_policy_training_step(
         )
         if save_sooper_backup:
             compressed_transitions = compress_transitions_ensemble(
-                transitions, ensemble_axis=1
+                transitions, ensemble_index, ensemble_axis=1
             )
             (
                 backup_critic_loss,
@@ -167,7 +171,7 @@ def make_on_policy_training_step(
                 backup_qr_optimizer_state,
             ) = backup_critic_update(
                 training_state.backup_qr_params,
-                training_state.behavior_policy_params,  # TODO: Is it correct to use a common policy for backup and behavior?
+                training_state.behavior_policy_params,
                 training_state.normalizer_params,
                 training_state.backup_target_qr_params,
                 alpha,
@@ -188,24 +192,55 @@ def make_on_policy_training_step(
                 key, key_cost = jax.random.split(key)
                 _, *ens_keys_cost = jax.random.split(key_cost, ensemble_size + 1)
                 ens_keys_cost = jnp.stack(ens_keys_cost)
-                (
-                    cost_loss,
-                    behavior_qc_params,
-                    behavior_qc_optimizer_state,
-                ) = cost_critic_update(
-                    training_state.behavior_qc_params,
-                    training_state.behavior_policy_params,
-                    training_state.normalizer_params,
-                    training_state.behavior_target_qc_params,
-                    alpha,
-                    trans_per_ens,
-                    ens_keys_cost,
-                    cost_q_transform,
-                    safe,
-                    uncertainty_constraint,
-                    optimizer_state=training_state.behavior_qc_optimizer_state,
-                    params=training_state.behavior_qc_params,
-                )
+
+                if not separate_critics:
+                    (
+                        cost_loss,
+                        behavior_qc_params,
+                        behavior_qc_optimizer_state,
+                    ) = cost_critic_update(
+                        training_state.behavior_qc_params,
+                        training_state.behavior_policy_params,
+                        training_state.normalizer_params,
+                        training_state.behavior_target_qc_params,
+                        alpha,
+                        trans_per_ens,
+                        ens_keys_cost,
+                        cost_q_transform,
+                        safe,
+                        uncertainty_constraint,
+                        optimizer_state=training_state.behavior_qc_optimizer_state,
+                        params=training_state.behavior_qc_params,
+                    )
+                else:
+                    per_member_vmap = jax.vmap(
+                        lambda p_i, opt_i, trans_i, key_i, tq_i: cost_critic_update(
+                            p_i,
+                            training_state.behavior_policy_params,
+                            training_state.normalizer_params,
+                            tq_i,
+                            alpha,
+                            trans_i,
+                            key_i,
+                            cost_q_transform,
+                            safe,
+                            uncertainty_constraint,
+                            optimizer_state=opt_i,
+                            params=p_i,
+                        ),
+                        in_axes=(0, 0, 0, 0, 0),
+                    )
+                    (
+                        cost_loss,
+                        behavior_qc_params,
+                        behavior_qc_optimizer_state,
+                    ) = per_member_vmap(
+                        training_state.behavior_qc_params,
+                        training_state.behavior_qc_optimizer_state,
+                        trans_per_ens,
+                        ens_keys_cost,
+                        training_state.behavior_target_qc_params,
+                    )
                 cost_metrics["behavior_cost_critic_loss"] = cost_loss
             else:
                 behavior_qc_params = training_state.behavior_qc_params
@@ -251,6 +286,7 @@ def make_on_policy_training_step(
             safety_budget,
             penalizer,
             training_state.penalizer_params,
+            training_state.backup_qc_params,
             optimizer_state=training_state.behavior_policy_optimizer_state,
             params=training_state.behavior_policy_params,
         )
@@ -420,9 +456,10 @@ def make_on_policy_training_step(
                 transitions.reward.shape, disagreement
             )  # (B,ensemble_size)
             disagreement_metrics = {"normalized_disagreement": disagreement.mean()}
-            disagreement_metrics["model_stage_cost"] = transitions.extras[
-                "state_extras"
-            ]["cost"]
+            if safe:
+                disagreement_metrics["model_stage_cost"] = transitions.extras[
+                    "state_extras"
+                ]["cost"]
         sac_replay_buffer_state = sac_replay_buffer.insert(
             sac_replay_buffer_state, float16(transitions)
         )
@@ -544,7 +581,8 @@ def make_on_policy_training_step(
             training_key = key
         model_buffer_state, transitions = model_replay_buffer.sample(model_buffer_state)
         cost_metrics = {}
-        cost_metrics["real_stage_cost"] = transitions.extras["state_extras"]["cost"]
+        if safe:
+            cost_metrics["real_stage_cost"] = transitions.extras["state_extras"]["cost"]
         # Change the front dimension of transitions so 'update_step' is called
         # grad_updates_per_step times by the scan.
         tmp_transitions = jax.tree_util.tree_map(

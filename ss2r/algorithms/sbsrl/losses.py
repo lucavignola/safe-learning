@@ -55,6 +55,8 @@ def make_losses(
     offline,
     flip_uncertainty_constraint,
     target_entropy: float | None = None,
+    separate_critics: bool = False,
+    optimistic_qr: bool = False,
 ):
     target_entropy = -0.5 * action_size if target_entropy is None else target_entropy
     policy_network = sbsrl_network.policy_network
@@ -216,6 +218,7 @@ def make_losses(
         safety_budget: float,
         penalizer: Penalizer | None,
         penalizer_params: Any,
+        backup_qc_params: Params | None,
     ) -> jnp.ndarray:
         dist_params = policy_network.apply(
             normalizer_params, policy_params, transitions.observation
@@ -243,20 +246,45 @@ def make_losses(
             qr = jnp.min(qr_action, axis=-1)
         qr /= reward_scaling
         actor_loss = -qr.mean()
+        if optimistic_qr:
+            actor_loss = -jnp.max(jnp.mean(qr, axis=-1))
         exploration_loss = (alpha * log_prob).mean()
 
         aux = {}
         if safe or uncertainty_constraint:
             assert qc_network is not None
-            qc_action = jax.vmap(
-                lambda i: qc_network.apply(
-                    normalizer_params,
-                    qc_params,
-                    transitions.observation,
-                    action,
-                    jnp.full((transitions.observation.shape[0],), i, dtype=jnp.int32),
+            if separate_critics:
+                qc_action = jax.vmap(
+                    lambda i, p: qc_network.apply(
+                        normalizer_params,
+                        p,
+                        transitions.observation,
+                        action,
+                        jnp.full(
+                            (transitions.observation.shape[0],), i, dtype=jnp.int32
+                        ),
+                    ),
+                    in_axes=(0, 0),
+                )(idxs, qc_params)
+            else:
+                qc_action = jax.vmap(
+                    lambda i: qc_network.apply(
+                        normalizer_params,
+                        qc_params,
+                        transitions.observation,
+                        action,
+                        jnp.full(
+                            (transitions.observation.shape[0],), i, dtype=jnp.int32
+                        ),
+                    )
+                )(idxs)  # (E, B, n_critics*head_size)
+            if save_sooper_backup:
+                assert backup_qc_network is not None
+                qc_backup = backup_qc_network.apply(
+                    normalizer_params, backup_qc_params, transitions.observation, action
                 )
-            )(idxs)  # (E, B, n_critics*head_size)
+                qc_backup = jnp.mean(qc_backup)
+                aux["qc_backup"] = qc_backup
             qc_action = qc_action.reshape(
                 ensemble_size, -1, n_critics, int(safe) + int(uncertainty_constraint)
             )  # -> (E, B, n_critics, head_size)
@@ -420,6 +448,7 @@ def make_losses(
     return (
         alpha_loss,
         critic_loss_vmap,
+        critic_loss,
         actor_loss,
         compute_model_loss,
         backup_critic_loss,
