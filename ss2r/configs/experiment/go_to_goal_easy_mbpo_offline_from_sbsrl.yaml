@@ -1,0 +1,44 @@
+# @package _global_
+defaults:
+  - override /environment: go_to_goal_easy
+  - override /agent: mbpo
+  - override /agent/data_collection: episodic
+  - override /agent/penalizer: lagrangian
+  - _self_
+
+training:
+  num_timesteps: 200000
+  train_domain_randomization: false
+  eval_domain_randomization: false
+  safe: true
+  safety_budget: 25
+  action_repeat: 4
+  num_envs: 1
+  num_evals: 20
+  wandb_id: p0ehi1ei #be5glx0u,naysr4ow,p14k5175,0mzh8epy,km2chbf8
+
+agent:
+  policy_hidden_layer_sizes: [256, 256, 256]
+  value_hidden_layer_sizes: [512, 512]
+  activation: swish
+  batch_size: 256
+  max_replay_size: 4194304
+  critic_grad_updates_per_step: 2000
+  model_grad_updates_per_step: 130000
+  num_critic_updates_per_actor_update: 3
+  num_model_rollouts: 100000
+  learning_rate: 3e-6
+  critic_learning_rate: 1e-7
+  model_learning_rate: 1e-4
+
+  safety_discounting: 0.999
+  normalize_budget: false
+  model_to_real_data_ratio: 1
+  penalizer:
+    lagrange_multiplier: 0.01
+    penalty_multiplier: 0.001
+    penalty_multiplier_factor: 1e-4
+  safety_filter: null
+  load_from_sbsrl: true
+  advantage_threshold: null
+  load_auxiliaries: true

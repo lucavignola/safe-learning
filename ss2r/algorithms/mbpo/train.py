@@ -334,19 +334,35 @@ def train(
     local_key, model_rb_key, actor_critic_rb_key, env_key, eval_key = jax.random.split(
         local_key, 5
     )
+    num_model_rollouts = int(
+        critic_grad_updates_per_step * sac_batch_size * model_to_real_data_ratio
+    )
+    model_grad_updates_per_step = (
+        int(
+            (
+                num_model_rollouts
+                * (1 - model_to_real_data_ratio)
+                / model_to_real_data_ratio
+            )
+            / batch_size
+        )
+        + 1
+    )
+    logging.info(f"Num model rollouts: {num_model_rollouts}")
+    logging.info(f"Model grad updates per step: {model_grad_updates_per_step}")
     model_replay_buffer = replay_buffers.UniformSamplingQueue(
         max_replay_size=max_replay_size,
         dummy_data_sample=dummy_transition,
         sample_batch_size=batch_size * model_grad_updates_per_step,
     )
-    if make_training_step_fn == make_non_episodic_training_step:
+    """if make_training_step_fn == make_non_episodic_training_step:
         sample_batch_size = sac_batch_size
     else:
-        sample_batch_size = sac_batch_size * critic_grad_updates_per_step
+        sample_batch_size = sac_batch_size * critic_grad_updates_per_step"""  # TODO: check this
     sac_replay_buffer = replay_buffers.UniformSamplingQueue(
         max_replay_size=max_replay_size,
         dummy_data_sample=dummy_transition,
-        sample_batch_size=sample_batch_size,
+        sample_batch_size=sac_batch_size,
     )
     model_buffer_state = model_replay_buffer.init(model_rb_key)
     sac_buffer_state = sac_replay_buffer.init(actor_critic_rb_key)
