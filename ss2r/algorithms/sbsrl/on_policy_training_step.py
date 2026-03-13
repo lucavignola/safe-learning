@@ -357,6 +357,7 @@ def make_on_policy_training_step(
             backup_qc_optimizer_state=backup_qc_optimizer_state,
             backup_qr_optimizer_state=backup_qr_optimizer_state,
             backup_qc_params=backup_qc_params,
+            backup_qr_params=backup_qr_params,
             behavior_qc_optimizer_state=behavior_qc_optimizer_state,
             behavior_qc_params=behavior_qc_params,
             backup_target_qc_params=new_backup_target_qc_params,
