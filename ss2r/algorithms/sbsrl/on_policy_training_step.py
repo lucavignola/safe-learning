@@ -287,6 +287,7 @@ def make_on_policy_training_step(
             penalizer,
             training_state.penalizer_params,
             training_state.backup_qc_params,
+            training_state.backup_qr_params,
             optimizer_state=training_state.behavior_policy_optimizer_state,
             params=training_state.behavior_policy_params,
         )
