@@ -118,12 +118,18 @@ def _project_member_to_backup_template(
         backup_arr = jnp.asarray(backup_leaf)
 
         candidate = source_arr
-        if (
-            source_arr.ndim >= 1
-            and source_arr.shape[0] > ensemble_index
-            and source_arr.shape[1:] != backup_arr.shape
-        ):
-            candidate = source_arr[ensemble_index]
+        # Separate critics are stored with a leading ensemble axis, while backup
+        # SAC critics are single-model params.
+        if source_arr.ndim == backup_arr.ndim + 1:
+            if ensemble_index == -1:
+                candidate = jnp.mean(source_arr, axis=0)
+            elif 0 <= ensemble_index < source_arr.shape[0]:
+                candidate = source_arr[ensemble_index]
+            else:
+                raise ValueError(
+                    f"Invalid ensemble_index={ensemble_index} for source leaf "
+                    f"with shape {source_arr.shape}."
+                )
 
         if candidate.shape == backup_arr.shape:
             return candidate
