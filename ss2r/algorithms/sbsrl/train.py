@@ -99,6 +99,51 @@ def dict_to_running_statistics(d: dict) -> RunningStatisticsState:
     )
 
 
+def _project_member_to_backup_template(
+    source_params: Params,
+    backup_template_params: Params,
+    ensemble_index: int,
+) -> Params:
+    """Projects one ensemble member onto backup parameter shapes.
+
+    If a leaf has a leading ensemble axis, it selects `ensemble_index`.
+    If the selected leaf has a larger output channel dimension than the backup
+    template (e.g. qc with safety+uncertainty heads), it slices to the template
+    size (safe head only for backup qc).
+    """
+
+    def _project_leaf(source_leaf, backup_leaf):
+        source_arr = jnp.asarray(source_leaf)
+        backup_arr = jnp.asarray(backup_leaf)
+
+        candidate = source_arr
+        if (
+            source_arr.ndim >= 1
+            and source_arr.shape[0] > ensemble_index
+            and source_arr.shape[1:] != backup_arr.shape
+        ):
+            candidate = source_arr[ensemble_index]
+
+        if candidate.shape == backup_arr.shape:
+            return candidate
+
+        if (
+            candidate.ndim == backup_arr.ndim
+            and candidate.shape[:-1] == backup_arr.shape[:-1]
+            and candidate.shape[-1] >= backup_arr.shape[-1]
+        ):
+            return candidate[..., : backup_arr.shape[-1]]
+
+        raise ValueError(
+            "Cannot project separate critic params to backup template shape: "
+            f"source leaf shape {source_arr.shape}, "
+            f"candidate shape {candidate.shape}, "
+            f"backup leaf shape {backup_arr.shape}."
+        )
+
+    return jax.tree_util.tree_map(_project_leaf, source_params, backup_template_params)
+
+
 def _init_training_state(
     key: PRNGKey,
     obs_size: int,
@@ -902,6 +947,22 @@ def train(
             env_state = reset_fn(reset_keys)
         current_step = int(training_state.env_steps)
 
+        backup_qr_params_to_save = training_state.backup_qr_params
+        backup_qc_params_to_save = training_state.backup_qc_params
+        if (
+            save_sooper_backup
+            and separate_critics
+            and ensemble_index >= 0
+            and training_state.backup_qr_params is not None
+            and training_state.backup_qc_params is not None
+            and training_state.behavior_qc_params is not None
+        ):
+            backup_qc_params_to_save = _project_member_to_backup_template(
+                training_state.behavior_qc_params,
+                training_state.backup_qc_params,
+                ensemble_index,
+            )
+
         # Eval and logging
         if checkpoint_logdir:
             # Save current policy.
@@ -919,8 +980,8 @@ def train(
                 training_state.model_params,
                 training_state.model_optimizer_state,
                 training_state.disagreement_normalizer_params,
-                training_state.backup_qr_params,
-                training_state.backup_qc_params,
+                backup_qr_params_to_save,
+                backup_qc_params_to_save,
                 training_state.backup_qr_optimizer_state,
                 training_state.backup_qc_optimizer_state,
             )
@@ -942,6 +1003,22 @@ def train(
 
     total_steps = current_step
     assert total_steps >= num_timesteps
+    backup_qr_params_to_save = training_state.backup_qr_params
+    backup_qc_params_to_save = training_state.backup_qc_params
+    if (
+        save_sooper_backup
+        and separate_critics
+        and ensemble_index >= 0
+        and training_state.backup_qr_params is not None
+        and training_state.backup_qc_params is not None
+        and training_state.behavior_qc_params is not None
+    ):
+        backup_qc_params_to_save = _project_member_to_backup_template(
+            training_state.behavior_qc_params,
+            training_state.backup_qc_params,
+            ensemble_index,
+        )
+
     params = (
         training_state.normalizer_params,
         training_state.behavior_policy_params,
@@ -956,8 +1033,8 @@ def train(
         training_state.model_params,
         training_state.model_optimizer_state,
         training_state.disagreement_normalizer_params,
-        training_state.backup_qr_params,
-        training_state.backup_qc_params,
+        backup_qr_params_to_save,
+        backup_qc_params_to_save,
         training_state.backup_qr_optimizer_state,
         training_state.backup_qc_optimizer_state,
     )
