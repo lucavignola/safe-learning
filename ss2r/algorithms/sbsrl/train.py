@@ -270,7 +270,9 @@ def _project_member_to_backup_template(
     source_unfrozen = flax.core.unfreeze(source_params)
     template_unfrozen = flax.core.unfreeze(backup_template_params)
     projected = _project_tree(source_unfrozen, template_unfrozen)
-    return flax.core.freeze(projected)
+    # Rebuild with the exact same pytree/custom-node structure as the template
+    # (e.g. nested FrozenDict), so JAX traces stay type-consistent across epochs.
+    return flax.serialization.from_state_dict(backup_template_params, projected)
 
 
 def _init_training_state(
