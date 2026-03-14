@@ -1092,6 +1092,9 @@ def train(
                 training_state.backup_qc_params,
                 ensemble_index,
             )
+            training_state = training_state.replace(  # type: ignore[attr-defined]
+                backup_qc_params=backup_qc_params_to_save
+            )
 
         # Eval and logging
         if checkpoint_logdir:
