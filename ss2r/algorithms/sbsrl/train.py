@@ -225,10 +225,33 @@ def _project_member_to_backup_template(
                         w_emb = src_k[in_tgt:, :]
                         b_adj = src_b + jnp.matmul(embed_vec, w_emb)
 
-                        child_out = _project_tree(source_child, template_child)
-                        child_out["Dense_0"] = dict(child_out["Dense_0"])
-                        child_out["Dense_0"]["kernel"] = w_obs
-                        child_out["Dense_0"]["bias"] = b_adj
+                        child_out = {}
+                        for child_k, child_template in template_child.items():
+                            if child_k == "Dense_0":
+                                src_dense = source_child["Dense_0"]
+                                dense_out = {}
+                                for dense_k, dense_template in child_template.items():
+                                    if dense_k == "kernel":
+                                        dense_out[dense_k] = w_obs
+                                    elif dense_k == "bias":
+                                        dense_out[dense_k] = b_adj
+                                    else:
+                                        if dense_k not in src_dense:
+                                            raise ValueError(
+                                                f"Missing key '{dense_k}' in source Dense_0 while projecting backup."
+                                            )
+                                        dense_out[dense_k] = _project_tree(
+                                            src_dense[dense_k], dense_template
+                                        )
+                                child_out[child_k] = dense_out
+                            else:
+                                if child_k not in source_child:
+                                    raise ValueError(
+                                        f"Missing key '{child_k}' in source params while projecting backup."
+                                    )
+                                child_out[child_k] = _project_tree(
+                                    source_child[child_k], child_template
+                                )
                         out[k] = child_out
                         continue
 
