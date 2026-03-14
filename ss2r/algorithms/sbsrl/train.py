@@ -21,6 +21,7 @@ import functools
 import time
 from typing import Any, Callable, Mapping, Optional, Tuple
 
+import flax
 import jax
 import jax.numpy as jnp
 import optax
@@ -141,7 +142,26 @@ def _project_member_to_backup_template(
             f"backup leaf shape {backup_arr.shape}."
         )
 
-    return jax.tree_util.tree_map(_project_leaf, source_params, backup_template_params)
+    def _project_tree(source_tree, template_tree):
+        if isinstance(template_tree, Mapping):
+            if not isinstance(source_tree, Mapping):
+                raise ValueError(
+                    "Template expects a mapping subtree but source is not a mapping."
+                )
+            out = {}
+            for k, template_child in template_tree.items():
+                if k not in source_tree:
+                    raise ValueError(
+                        f"Missing key '{k}' in source params while projecting backup."
+                    )
+                out[k] = _project_tree(source_tree[k], template_child)
+            return out
+        return _project_leaf(source_tree, template_tree)
+
+    source_unfrozen = flax.core.unfreeze(source_params)
+    template_unfrozen = flax.core.unfreeze(backup_template_params)
+    projected = _project_tree(source_unfrozen, template_unfrozen)
+    return flax.core.freeze(projected)
 
 
 def _init_training_state(
