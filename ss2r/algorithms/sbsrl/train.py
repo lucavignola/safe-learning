@@ -148,19 +148,91 @@ def _project_member_to_backup_template(
             f"backup leaf shape {backup_arr.shape}."
         )
 
+    def _extract_embed_vec(source_tree):
+        if not isinstance(source_tree, Mapping):
+            return None
+        if "ensemble_embed" not in source_tree:
+            return None
+        embed_node = source_tree["ensemble_embed"]
+        if not isinstance(embed_node, Mapping) or "embedding" not in embed_node:
+            return None
+        embedding = jnp.asarray(embed_node["embedding"])
+        if embedding.ndim != 2:
+            return None
+        if ensemble_index == -1:
+            return jnp.mean(embedding, axis=0)
+        if 0 <= ensemble_index < embedding.shape[0]:
+            return embedding[ensemble_index]
+        raise ValueError(
+            f"Invalid ensemble_index={ensemble_index} for embedding shape {embedding.shape}."
+        )
+
     def _project_tree(source_tree, template_tree):
         if isinstance(template_tree, Mapping):
             if not isinstance(source_tree, Mapping):
                 raise ValueError(
                     "Template expects a mapping subtree but source is not a mapping."
                 )
+            embed_vec = _extract_embed_vec(source_tree)
             out = {}
             for k, template_child in template_tree.items():
                 if k not in source_tree:
                     raise ValueError(
                         f"Missing key '{k}' in source params while projecting backup."
                     )
-                out[k] = _project_tree(source_tree[k], template_child)
+
+                source_child = source_tree[k]
+
+                # If source has ensemble embedding concatenated to first layer input,
+                # fold selected embedding into Dense_0 bias so outputs match backup net.
+                if (
+                    embed_vec is not None
+                    and isinstance(source_child, Mapping)
+                    and isinstance(template_child, Mapping)
+                    and "Dense_0" in source_child
+                    and "Dense_0" in template_child
+                    and isinstance(source_child["Dense_0"], Mapping)
+                    and isinstance(template_child["Dense_0"], Mapping)
+                    and "kernel" in source_child["Dense_0"]
+                    and "bias" in source_child["Dense_0"]
+                    and "kernel" in template_child["Dense_0"]
+                    and "bias" in template_child["Dense_0"]
+                ):
+                    src_k = jnp.asarray(source_child["Dense_0"]["kernel"])
+                    src_b = jnp.asarray(source_child["Dense_0"]["bias"])
+                    tgt_k = jnp.asarray(template_child["Dense_0"]["kernel"])
+                    tgt_b = jnp.asarray(template_child["Dense_0"]["bias"])
+
+                    if src_k.ndim == 3 and src_k.shape[0] > 0:
+                        if ensemble_index == -1:
+                            src_k = jnp.mean(src_k, axis=0)
+                            src_b = jnp.mean(src_b, axis=0)
+                        else:
+                            src_k = src_k[ensemble_index]
+                            src_b = src_b[ensemble_index]
+
+                    in_tgt = tgt_k.shape[0]
+                    emb_in = src_k.shape[0] - in_tgt
+                    if (
+                        src_k.ndim == 2
+                        and tgt_k.ndim == 2
+                        and src_k.shape[1] == tgt_k.shape[1]
+                        and emb_in > 0
+                        and src_b.shape == tgt_b.shape
+                        and embed_vec.shape[0] == emb_in
+                    ):
+                        w_obs = src_k[:in_tgt, :]
+                        w_emb = src_k[in_tgt:, :]
+                        b_adj = src_b + jnp.matmul(embed_vec, w_emb)
+
+                        child_out = _project_tree(source_child, template_child)
+                        child_out["Dense_0"] = dict(child_out["Dense_0"])
+                        child_out["Dense_0"]["kernel"] = w_obs
+                        child_out["Dense_0"]["bias"] = b_adj
+                        out[k] = child_out
+                        continue
+
+                out[k] = _project_tree(source_child, template_child)
             return out
         return _project_leaf(source_tree, template_tree)
 
