@@ -157,15 +157,23 @@ def _project_member_to_backup_template(
         if not isinstance(embed_node, Mapping) or "embedding" not in embed_node:
             return None
         embedding = jnp.asarray(embed_node["embedding"])
+        # When separate_critics=True the embedding is vmapped, adding one or
+        # more leading axes: (model_ensemble_size, ..., ensemble_size, embed_dim).
+        # Strip those leading axes until we reach shape (ensemble_size, embed_dim).
+        while embedding.ndim > 2:
+            if ensemble_index == -1:
+                embedding = jnp.mean(embedding, axis=0)
+            elif 0 <= ensemble_index < embedding.shape[0]:
+                embedding = embedding[ensemble_index]
+            else:
+                return None
         if embedding.ndim != 2:
             return None
         if ensemble_index == -1:
             return jnp.mean(embedding, axis=0)
         if 0 <= ensemble_index < embedding.shape[0]:
             return embedding[ensemble_index]
-        raise ValueError(
-            f"Invalid ensemble_index={ensemble_index} for embedding shape {embedding.shape}."
-        )
+        return None
 
     def _project_tree(source_tree, template_tree):
         if isinstance(template_tree, Mapping):
@@ -527,6 +535,7 @@ def train(
         n_heads=n_heads,
         ensemble_size=model_ensemble_size,
         embedding_dim=embedding_dim,
+        separate_critics=separate_critics,
     )
     alpha_optimizer = optax.adam(learning_rate=alpha_learning_rate)
     make_optimizer = lambda lr, grad_clip_norm: optax.chain(

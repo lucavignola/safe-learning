@@ -48,6 +48,7 @@ class NetworkFactory(Protocol[NetworkType]):
         use_bro: bool = True,
         ensemble_size: int = 10,
         embedding_dim: int = 4,
+        separate_critics: bool = False,
     ) -> NetworkType:
         pass
 
