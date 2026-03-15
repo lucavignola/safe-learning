@@ -16,4 +16,4 @@ training:
 
 agent:
   activation: swish
-  reset_on_eval: false
+  reset_on_eval: true
