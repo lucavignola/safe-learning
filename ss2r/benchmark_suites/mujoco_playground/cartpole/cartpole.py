@@ -129,6 +129,15 @@ def make_hard(name, **kwargs):
     return env
 
 
+def make_both(name, **kwargs):
+    limit = kwargs["config"]["slider_position_bound"]
+    scale = kwargs["config"]["action_cost_scale"]
+    env = dm_control_suite.load(name, **kwargs)
+    env = ActionCostWrapper(env, scale)
+    env = ConstraintWrapper(env, limit)
+    return env
+
+
 for env_name in _envs:
     dm_control_suite.register_environment(
         f"Safe{env_name}",
@@ -140,5 +149,12 @@ for env_name in _envs:
     dm_control_suite.register_environment(
         f"Hard{env_name}",
         functools.partial(make_hard, env_name),
+        dm_control_suite.cartpole.default_config,
+    )
+
+for env_name in _envs:
+    dm_control_suite.register_environment(
+        f"Both{env_name}",
+        functools.partial(make_both, env_name),
         dm_control_suite.cartpole.default_config,
     )
