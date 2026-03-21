@@ -37,6 +37,7 @@ agent:
   use_mean_critic: false
   offline: true
   save_sooper_backup: true
+  ensemble_index: 0
   uncertainty_constraint: true
   flip_uncertainty_constraint: false
   uncertainty_epsilon: 0
