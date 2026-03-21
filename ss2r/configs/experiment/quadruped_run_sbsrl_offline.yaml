@@ -40,7 +40,9 @@ agent:
   model_to_real_data_ratio: 0.5
   use_mean_critic: false
   separate_critics: true
+  save_sooper_backup: true
+  ensemble_index: 0
   penalizer:
-    lagrange_multiplier: 0.5
+    lagrange_multiplier: 1
     penalty_multiplier: 0.001
     penalty_multiplier_factor: 1e-4
