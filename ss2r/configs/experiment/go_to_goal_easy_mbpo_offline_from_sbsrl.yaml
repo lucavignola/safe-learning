@@ -15,7 +15,7 @@ training:
   action_repeat: 4
   num_envs: 1
   num_evals: 20
-  wandb_id: p0ehi1ei #be5glx0u,naysr4ow,p14k5175,0mzh8epy,km2chbf8
+  wandb_id: t6d5vzkt,c6yfdpmy,s2md4bew,i2zxks9t,w2pxk3r9
 
 agent:
   policy_hidden_layer_sizes: [256, 256, 256]
@@ -40,5 +40,6 @@ agent:
     penalty_multiplier_factor: 1e-4
   safety_filter: null
   load_from_sbsrl: true
+  model_propagation: first
   advantage_threshold: null
   load_auxiliaries: true

@@ -15,7 +15,7 @@ training:
   action_repeat: 4
   num_envs: 1
   num_evals: 20
-  wandb_id: be5glx0u #,naysr4ow,p14k5175,0mzh8epy,km2chbf8
+  wandb_id: t6d5vzkt #,c6yfdpmy,s2md4bew,i2zxks9t,w2pxk3r9
 
 agent:
   policy_hidden_layer_sizes: [256, 256, 256]
@@ -42,7 +42,7 @@ agent:
   optimistic_qr: false
   separate_critics: true
   penalizer:
-    lagrange_multiplier: 0.01
+    lagrange_multiplier: 0.001
     penalty_multiplier: 0.001
     penalty_multiplier_factor: 1e-4
     lagrange_multiplier_sigma: 0

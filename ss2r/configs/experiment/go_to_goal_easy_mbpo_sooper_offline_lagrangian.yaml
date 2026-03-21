@@ -15,17 +15,15 @@ training:
   safety_budget: 25
   action_repeat: 4
   num_envs: 1
-  num_evals: 25
-  wandb_id: 16f4nuip
+  num_evals: 20
+  wandb_id: t6d5vzkt #,c6yfdpmy,s2md4bew,i2zxks9t,w2pxk3r9
 
 agent:
   policy_hidden_layer_sizes: [256, 256, 256]
   value_hidden_layer_sizes: [512, 512]
-  model_hidden_layer_sizes: [400,400,400,400]
   activation: swish
   batch_size: 256
-  min_replay_size: 5000
-  max_replay_size: 1048576
+  max_replay_size: 4194304
   critic_grad_updates_per_step: 2000
   model_grad_updates_per_step: 130000
   num_critic_updates_per_actor_update: 3
@@ -33,12 +31,18 @@ agent:
   learning_rate: 3e-6
   critic_learning_rate: 1e-7
   model_learning_rate: 1e-4
+
+  safety_discounting: 0.999
+  normalize_budget: false
+  model_to_real_data_ratio: 1
+  load_from_sbsrl: true
+  load_auxiliaries: true
+  model_propagation: first
+  
   pessimism: 0.55
   optimism: 0.5
-  discounting: 0.95
   advantage_threshold: 0.2
-  load_auxiliaries: true
-  model_to_real_data_ratio: 1.
+
   cost_robustness: null
   use_termination: false
   safety_filter: null
