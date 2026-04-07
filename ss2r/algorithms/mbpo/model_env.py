@@ -251,6 +251,11 @@ def _propagate_ensemble(
         next_obs = jax.tree_map(lambda x: jnp.mean(x, axis=0), next_obs_pred)
         reward = jnp.mean(reward_pred, axis=0)
         cost = jnp.mean(cost_pred, axis=0)
+    elif ensemble_selection == "first":
+        first_model_params = jax.tree_map(lambda p: p[0], model_params)
+        next_obs, reward, cost = pred_fn(
+            normalizer_params, first_model_params, obs, action
+        )
     else:
         raise ValueError(f"Unknown ensemble selection: {ensemble_selection}")
     return next_obs, reward, cost

@@ -221,6 +221,8 @@ def get_penalizer(cfg):
     if "penalizer" not in cfg.agent:
         return None, None
     if cfg.agent.penalizer.name == "lagrangian":
+        if cfg.training.safe == False:
+            return None, None
         penalizer = AugmentedLagrangian(cfg.agent.penalizer.penalty_multiplier_factor)
         penalizer_state = AugmentedLagrangianParams(
             cfg.agent.penalizer.lagrange_multiplier,
