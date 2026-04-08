@@ -1,27 +1,28 @@
 # @package _global_
 defaults:
+  #- mujoco_playground_dm_control_mbpo
   - override /environment: cartpole_swingup
   - override /agent: sbsrl
-  - override /agent/data_collection: episodic
   - override /agent/penalizer: multiaug_lagrangian
   - _self_
 
 environment:
-  task_name: BothCartpoleSwingup
+  task_name: BothCartpoleSwingupSparse
   task_params:
     action_cost_scale: 0.2
 
 training:
-  num_timesteps: 896000
+  num_timesteps: 294400
+  action_repeat: 4
   safe: true
-  num_envs: 10
+  render: false
   train_domain_randomization: false
   eval_domain_randomization: false
   safety_budget: 100
-  num_evals: 15
+  num_envs: 128
+  num_evals: 20
   num_eval_envs: 128
-  render: false
-  wandb_id: vy32nbw2 #,2tthiu0u,8eco0qql,jqpm5u37,ndt75g5x
+  wandb_id: r9v5jmva
 
 agent:
   activation: swish
@@ -29,20 +30,23 @@ agent:
   value_hidden_layer_sizes: [512, 512]
   batch_size: 256
   max_replay_size: 1000000
+  critic_grad_updates_per_step: 50
+  model_grad_updates_per_step: 50
+  num_model_rollouts: 50000
+  offline: true
+  save_sooper_backup: true
+  flip_uncertainty_constraint: false
   uncertainty_constraint: true
   uncertainty_epsilon: 0
-  model_to_real_data_ratio: 0.1
-  min_replay_size: 8192
-  sac_batch_size: 256
-  critic_grad_updates_per_step: 4000
-  model_grad_updates_per_step: 1000
-  num_model_rollouts: 100000
-  num_critic_updates_per_actor_update: 1
-  optimistic_qr: false
-  normalize_disagreement: true
+  cost_scaling: 1
+  reward_scaling: 1
+  model_to_real_data_ratio: 1
+  reward_pessimism: 0
+  use_mean_critic: false
   separate_critics: true
+  ensemble_index: 0
   penalizer:
     lagrange_multiplier: 2.5
-    lagrange_multiplier_sigma: 0
-    penalty_multiplier: 1e-3
+    penalty_multiplier: 0.001
     penalty_multiplier_factor: 1e-4
+

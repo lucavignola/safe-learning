@@ -108,6 +108,29 @@ class ActionCostWrapper(Wrapper):
         return nstate
 
 
+class ConstraintActionWrapper(Wrapper):
+    def __init__(self, env: MjxEnv, slider_position_bound: float, action_cost_scale: float):
+        super().__init__(env)
+        self.slider_position_bound = slider_position_bound
+        self.action_cost_scale = action_cost_scale
+
+    def reset(self, rng: jax.Array) -> State:
+        state = self.env.reset(rng)
+        state.info["cost"] = jnp.zeros_like(state.reward)
+        return state
+
+    def step(self, state: State, action: jax.Array) -> State:
+        action_cost = (
+            self.action_cost_scale * (1 - tolerance(action, (-0.1, 0.1), 0.1))[0]
+        )
+        nstate = self.env.step(state, action)
+        nstate = nstate.replace(reward=nstate.reward - action_cost)
+        slider_pos = state.data.qpos[self.env._slider_qposadr]
+        cost = (jnp.abs(slider_pos) >= self.slider_position_bound).astype(jnp.float32)
+        nstate.info["cost"] = cost
+        return nstate
+
+
 _envs = [
     env_name
     for env_name in dm_control_suite.ALL_ENVS
@@ -133,8 +156,7 @@ def make_both(name, **kwargs):
     limit = kwargs["config"]["slider_position_bound"]
     scale = kwargs["config"]["action_cost_scale"]
     env = dm_control_suite.load(name, **kwargs)
-    env = ActionCostWrapper(env, scale)
-    env = ConstraintWrapper(env, limit)
+    env = ConstraintActionWrapper(env, limit, scale)
     return env
 
 
