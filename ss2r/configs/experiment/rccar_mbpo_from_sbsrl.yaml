@@ -35,7 +35,7 @@ agent:
   critic_learning_rate: 3e-4
   model_learning_rate: 3e-4
   use_termination: false
-  pessimism: 30
+  pessimism: 0
   # Use negative optimism so that the reward is pessimistic w.r.t uncertianty
   # following MOPO paper.
   optimism: 10

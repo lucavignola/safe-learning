@@ -2,6 +2,8 @@
 defaults:
   - override /environment: cartpole_swingup
   - override /agent: mbpo
+  - override /agent/data_collection: episodic
+  - override /agent/penalizer: lagrangian
   - _self_
 
 environment:
@@ -10,18 +12,19 @@ environment:
     action_cost_scale: 0.2
 
 training:
-  num_timesteps: 250000
+  num_timesteps: 2000000
   safe: false
-  num_envs: 10
+  num_envs: 20
   train_domain_randomization: false
   eval_domain_randomization: false
   action_repeat: 1
 
 agent:
-  min_replay_size: 5000
-  sac_batch_size: 256
-  critic_grad_updates_per_step: 30
-  model_grad_updates_per_step: 25
-  optimism: 25.
-  num_critic_updates_per_actor_update: 1
   model_to_real_data_ratio: 0.25
+  min_replay_size: 1000
+  sac_batch_size: 256
+  critic_grad_updates_per_step: 4000
+  model_grad_updates_per_step: 500
+  num_model_rollouts: 100000
+  num_critic_updates_per_actor_update: 1
+  optimism: 25.
