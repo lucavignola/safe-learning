@@ -32,7 +32,6 @@ environment:
 
 seed: 0
 session_id: rccar_online_learning
-mode: hardware
 server_address: tcp://*:5555
 safe: true
 episode_length: 250
