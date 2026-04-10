@@ -32,10 +32,12 @@ environment:
 
 seed: 0
 session_id: rccar_online_learning
+mode: hardware
+server_address: tcp://*:5555
 safe: true
 episode_length: 250
 car_id: 2
 port_number: 4
 control_frequency: 120.
-safety_filter: sooper
-wandb_id: o5m7b0p5
+safety_filter: null
+wandb_id: 1ngbzvbk

@@ -1,3 +1,4 @@
+import logging
 from typing import Mapping
 
 import hydra
@@ -8,12 +9,15 @@ from brax.training.acme import running_statistics, specs
 from brax.training.agents.sac import checkpoint
 
 import ss2r.algorithms.mbpo.networks as mbpo_networks
+import ss2r.algorithms.sbsrl.networks as sbsrl_networks
 from rccar_experiments.experiment_driver import ExperimentDriver
 from rccar_experiments.utils import make_env
 from ss2r.algorithms.mbpo import safety_filters
 from ss2r.algorithms.mbpo.train import get_dict_normalizer_params
 from ss2r.benchmark_suites.rccar import hardware
 from ss2r.common.wandb import get_wandb_checkpoint
+
+_LOG = logging.getLogger(__name__)
 
 
 def fetch_wandb_policy(cfg, env):
@@ -26,15 +30,51 @@ def fetch_wandb_policy(cfg, env):
         normalize = running_statistics.normalize
     else:
         normalize = lambda x, y: x
-    network = mbpo_networks.make_mbpo_networks(
-        observation_size=7,
-        action_size=2,
-        policy_hidden_layer_sizes=run_config["agent"]["policy_hidden_layer_sizes"],
-        value_hidden_layer_sizes=run_config["agent"]["value_hidden_layer_sizes"],
-        activation=jnn.swish,
-        preprocess_observations_fn=normalize,
-        safe=cfg.safe,
-    )
+
+    if run_config["agent"]["name"] == "sbsrl":
+        obs_size = env.observation_size
+        action_size = env.action_size
+        activation = getattr(jnn, run_config["agent"].get("activation", "swish"))
+        value_obs_key = (
+            "privileged_state"
+            if run_config.get("training", {}).get("value_privileged", False)
+            else "state"
+        )
+        policy_obs_key = (
+            "privileged_state"
+            if run_config.get("training", {}).get("policy_privileged", False)
+            else "state"
+        )
+        network = sbsrl_networks.make_sbsrl_networks(
+            observation_size=obs_size,
+            action_size=action_size,
+            preprocess_observations_fn=normalize,
+            policy_hidden_layer_sizes=run_config["agent"]["policy_hidden_layer_sizes"],
+            value_hidden_layer_sizes=run_config["agent"]["value_hidden_layer_sizes"],
+            model_hidden_layer_sizes=run_config["agent"]["model_hidden_layer_sizes"],
+            activation=activation,
+            value_obs_key=value_obs_key,
+            policy_obs_key=policy_obs_key,
+            safe=run_config["training"]["safe"],
+            uncertainty_constraint=run_config["agent"]["uncertainty_constraint"],
+            save_sooper_backup=run_config["agent"]["save_sooper_backup"],
+            use_bro=run_config["agent"]["use_bro"],
+            n_critics=run_config["agent"]["n_critics"],
+            n_heads=run_config["agent"]["n_heads"],
+            ensemble_size=run_config["agent"]["model_ensemble_size"],
+            embedding_dim=run_config["agent"]["embedding_dim"],
+            separate_critics=run_config["agent"]["separate_critics"],
+        )
+    else:
+        network = mbpo_networks.make_mbpo_networks(
+            observation_size=7,
+            action_size=2,
+            policy_hidden_layer_sizes=run_config["agent"]["policy_hidden_layer_sizes"],
+            value_hidden_layer_sizes=run_config["agent"]["value_hidden_layer_sizes"],
+            activation=jnn.swish,
+            preprocess_observations_fn=normalize,
+            safe=cfg.safe,
+        )
     if cfg.safety_filter == "sooper":
         normalizer_params = params[0]
         obs_size = env.observation_size
@@ -64,16 +104,25 @@ def fetch_wandb_policy(cfg, env):
 @hydra.main(
     version_base=None,
     config_path="../ss2r/configs",
-    config_name="rccar_online_learning",
+    config_name="rccar_online_learning_sbsrl",
 )
 def main(cfg):
-    with (
-        hardware.connect(
-            car_id=cfg.car_id,
-            port_number=cfg.port_number,
-            control_frequency=cfg.control_frequency,
-        ) as controller,
-    ):
+    mode = getattr(cfg, "mode", "hardware")
+    _LOG.info("Starting online learning server in mode=%s", mode)
+    if mode == "hardware":
+        with (
+            hardware.connect(
+                car_id=cfg.car_id,
+                port_number=cfg.port_number,
+                control_frequency=cfg.control_frequency,
+            ) as controller,
+        ):
+            env = make_env(cfg, controller)
+            policy_factory = fetch_wandb_policy(cfg, env)
+            driver = ExperimentDriver(cfg, controller, policy_factory, env)
+            driver.run()
+    else:
+        controller = None
         env = make_env(cfg, controller)
         policy_factory = fetch_wandb_policy(cfg, env)
         driver = ExperimentDriver(cfg, controller, policy_factory, env)

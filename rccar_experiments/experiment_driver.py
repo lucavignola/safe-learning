@@ -23,8 +23,15 @@ class ExperimentDriver:
         self.run_id = num_steps
         self.key = jax.random.PRNGKey(seed)
         self.episode_length = cfg.episode_length
-        self.transitions_server = TransitionsServer(self, safe_mode=True)
         self.hardware_handle = hardware_handle
+        self.mode = getattr(cfg, "mode", "hardware")
+        safe_mode = getattr(cfg, "safe_mode", self.mode == "hardware")
+        server_address = getattr(cfg, "server_address", "tcp://*:5555")
+        self.transitions_server = TransitionsServer(
+            self,
+            safe_mode=safe_mode,
+            address=server_address,
+        )
         self.env = env
         self.rollout_policy_fn = rollout_policy_fn
         _LOG.info("Experiment driver initialized.")
@@ -39,7 +46,12 @@ class ExperimentDriver:
         jitted_policy = jax.jit(policy)
         # JIT now
         jitted_policy(dummy_obs, key)
-        with hardware.start(self.hardware_handle):
+        if self.mode == "hardware":
+            with hardware.start(self.hardware_handle):
+                metrics, trajectory = collect_trajectory(
+                    self.env, jitted_policy, key, self.episode_length
+                )
+        else:
             metrics, trajectory = collect_trajectory(
                 self.env, jitted_policy, key, self.episode_length
             )
