@@ -439,6 +439,8 @@ def train(
     store_buffer: bool = False,
     reward_pessimism: float = 0.0,
     cost_pessimism: float = 0.0,
+    reward_pessimism_backup: float = 0.0,
+    cost_pessimism_backup: float = 0.0,
     pessimistic_cost: bool = False,
     model_propagation: str = "nominal",
     offline: bool = False,
@@ -869,6 +871,8 @@ def train(
         safety_budget,
         reward_pessimism,
         cost_pessimism,
+        reward_pessimism_backup,
+        cost_pessimism_backup,
         pessimistic_cost,
         model_to_real_data_ratio,
         offline,
@@ -1140,7 +1144,7 @@ def train(
     assert total_steps >= num_timesteps
     backup_qr_params_to_save = training_state.backup_qr_params
     backup_qc_params_to_save = training_state.backup_qc_params
-    
+
     # if (
     #     save_sooper_backup
     #     and separate_critics

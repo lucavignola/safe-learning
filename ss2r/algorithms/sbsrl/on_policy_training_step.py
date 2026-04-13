@@ -53,6 +53,8 @@ def make_on_policy_training_step(
     safety_budget,
     reward_pessimism,
     cost_pessimism,
+    reward_pessimism_backup,
+    cost_pessimism_backup,
     pessimistic_cost,
     model_to_real_data_ratio,
     offline,
@@ -123,7 +125,7 @@ def make_on_policy_training_step(
         else:
             disagreement = transitions.next_observation.std(axis=ensemble_axis).mean(-1)
 
-        new_reward = trans_compressed.reward - rew_pess * disagreement
+        new_reward = trans_compressed.reward + rew_pess * disagreement
 
         new_extras = dict(trans_compressed.extras)
         if "state_extras" in new_extras and "cost" in new_extras["state_extras"]:
@@ -179,7 +181,7 @@ def make_on_policy_training_step(
         if save_sooper_backup:
             key_critic, key_compress = jax.random.split(key_critic)
             compressed_transitions = compress_transitions_ensemble(
-                transitions, key_compress, reward_pessimism, cost_pessimism, ensemble_axis=1
+                transitions, key_compress, reward_pessimism_backup, cost_pessimism_backup, ensemble_axis=1
             )
             (
                 backup_critic_loss,
