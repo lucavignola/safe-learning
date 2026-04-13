@@ -120,10 +120,9 @@ def make_on_policy_training_step(
         }
         trans_compressed = transitions._replace(**replacements)
 
-        if isinstance(transitions.next_observation, dict):
-            disagreement = transitions.next_observation["state"].std(axis=ensemble_axis).mean(-1)
-        else:
-            disagreement = transitions.next_observation.std(axis=ensemble_axis).mean(-1)
+        disagreement = trans_compressed.extras.get("state_extras", {}).get(
+            "disagreement", jnp.zeros_like(trans_compressed.reward)
+        )
 
         new_reward = trans_compressed.reward + rew_pess * disagreement
 
@@ -560,6 +559,11 @@ def make_on_policy_training_step(
             if isinstance(next_obs_pred, jax.Array)
             else next_obs_pred["state"].std(axis=0).mean(-1)
         )  # (B,)
+        
+        transitions.extras["state_extras"]["disagreement"] = jnp.tile(
+            jnp.expand_dims(disagreement, 1), (1, ensemble_size)
+        )
+
         transitions.extras["state_extras"]["cost"] += (
             jnp.expand_dims(disagreement, 1) * cost_pessimism
         )
