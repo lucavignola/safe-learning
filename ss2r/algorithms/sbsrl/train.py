@@ -1140,19 +1140,20 @@ def train(
     assert total_steps >= num_timesteps
     backup_qr_params_to_save = training_state.backup_qr_params
     backup_qc_params_to_save = training_state.backup_qc_params
-    if (
-        save_sooper_backup
-        and separate_critics
-        and ensemble_index >= 0
-        and training_state.backup_qr_params is not None
-        and training_state.backup_qc_params is not None
-        and training_state.behavior_qc_params is not None
-    ):
-        backup_qc_params_to_save = _project_member_to_backup_template(
-            training_state.behavior_qc_params,
-            training_state.backup_qc_params,
-            ensemble_index,
-        )
+    
+    # if (
+    #     save_sooper_backup
+    #     and separate_critics
+    #     and ensemble_index >= 0
+    #     and training_state.backup_qr_params is not None
+    #     and training_state.backup_qc_params is not None
+    #     and training_state.behavior_qc_params is not None
+    # ):
+    #     backup_qc_params_to_save = _project_member_to_backup_template(
+    #         training_state.behavior_qc_params,
+    #         training_state.backup_qc_params,
+    #         ensemble_index,
+    #     )
 
     params = (
         training_state.normalizer_params,
