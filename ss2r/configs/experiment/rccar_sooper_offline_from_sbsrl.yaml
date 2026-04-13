@@ -2,8 +2,8 @@
 defaults:
   - override /environment: rccar_real
   - override /agent: mbpo
+  - override /agent/cost_robustness: pessimistic_cost_update
   - override /agent/data_collection: episodic
-  - override /agent/penalizer: lagrangian
   - _self_
 
 environment:
@@ -29,30 +29,27 @@ agent:
   max_replay_size: 1048576
   policy_hidden_layer_sizes: [64, 64]
   critic_grad_updates_per_step: 4000
-  model_grad_updates_per_step: 1000
+  model_grad_updates_per_step: 5000
   num_model_rollouts: 100000
   learning_rate: 1e-4
   critic_learning_rate: 1e-4
   model_learning_rate: 3e-4
  
-  normalize_budget: true
-  cost_scaling: 1
-  reward_scaling: 1
-  model_to_real_data_ratio: 0.5
+  # normalize_budget: true
+  # cost_scaling: 1
+  # reward_scaling: 1
+  # model_to_real_data_ratio: 0.5
 
-  penalizer:
-    lagrange_multiplier: 0.1
-    penalty_multiplier: 1e-3
-    penalty_multiplier_factor: 1e-4
+  # penalizer:
+  #   lagrange_multiplier: 0.1
+  #   penalty_multiplier: 1e-3
+  #   penalty_multiplier_factor: 1e-4
   
-  pessimism: 0
+  pessimism: 30
   optimism: 10
   
-  model_propagation: first
-  use_termination: false
   safety_filter: sooper
   load_from_sbsrl: true
-  advantage_threshold: null
-  load_auxiliaries: true
+  # load_auxiliaries: true
   
 
