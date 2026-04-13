@@ -101,22 +101,37 @@ def make_on_policy_training_step(
         return trans_per_ens
 
     def compress_transitions_ensemble(
-        transitions: Transition, ensemble_index, ensemble_axis: int = 1
+        transitions: Transition, key: PRNGKey, rew_pess: float, cost_pess: float, ensemble_axis: int = 1
     ) -> Transition:
+        idx = jax.random.randint(key, (), 0, ensemble_size)
+
         def _reduce_leaf(x: Any, name: str):
             if isinstance(x, dict):
                 return {k: _reduce_leaf(v, k) for k, v in x.items()}
             x_arr = jnp.asarray(x)
             if name in ("observation", "action"):
                 return x_arr
-            if ensemble_index != -1:
-                return jnp.take(x_arr, ensemble_index, axis=ensemble_axis)
-            return jnp.mean(x_arr, axis=ensemble_axis)
+            return jnp.take(x_arr, idx, axis=ensemble_axis)
 
         replacements = {
             f: _reduce_leaf(getattr(transitions, f), f) for f in transitions._fields
         }
         trans_compressed = transitions._replace(**replacements)
+
+        if isinstance(transitions.next_observation, dict):
+            disagreement = transitions.next_observation["state"].std(axis=ensemble_axis).mean(-1)
+        else:
+            disagreement = transitions.next_observation.std(axis=ensemble_axis).mean(-1)
+
+        new_reward = trans_compressed.reward - rew_pess * disagreement
+
+        new_extras = dict(trans_compressed.extras)
+        if "state_extras" in new_extras and "cost" in new_extras["state_extras"]:
+            new_state_extras = dict(new_extras["state_extras"])
+            new_state_extras["cost"] = new_state_extras["cost"] + cost_pess * disagreement
+            new_extras["state_extras"] = new_state_extras
+
+        trans_compressed = trans_compressed._replace(reward=new_reward, extras=new_extras)
         return trans_compressed
 
     def sgd_step(
@@ -162,8 +177,9 @@ def make_on_policy_training_step(
             params=training_state.behavior_qr_params,
         )
         if save_sooper_backup:
+            key_critic, key_compress = jax.random.split(key_critic)
             compressed_transitions = compress_transitions_ensemble(
-                transitions, ensemble_index, ensemble_axis=1
+                transitions, key_compress, reward_pessimism, cost_pessimism, ensemble_axis=1
             )
             (
                 backup_critic_loss,
