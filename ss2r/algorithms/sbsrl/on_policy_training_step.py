@@ -53,8 +53,6 @@ def make_on_policy_training_step(
     safety_budget,
     reward_pessimism,
     cost_pessimism,
-    reward_pessimism_backup,
-    cost_pessimism_backup,
     pessimistic_cost,
     model_to_real_data_ratio,
     offline,
@@ -120,9 +118,10 @@ def make_on_policy_training_step(
         }
         trans_compressed = transitions._replace(**replacements)
 
-        disagreement = trans_compressed.extras.get("state_extras", {}).get(
-            "disagreement", jnp.zeros_like(trans_compressed.reward)
-        )
+        if isinstance(transitions.next_observation, dict):
+            disagreement = transitions.next_observation["state"].std(axis=ensemble_axis).mean(-1)
+        else:
+            disagreement = transitions.next_observation.std(axis=ensemble_axis).mean(-1)
 
         new_reward = trans_compressed.reward + rew_pess * disagreement
 
@@ -180,7 +179,7 @@ def make_on_policy_training_step(
         if save_sooper_backup:
             key_critic, key_compress = jax.random.split(key_critic)
             compressed_transitions = compress_transitions_ensemble(
-                transitions, key_compress, reward_pessimism_backup, cost_pessimism_backup, ensemble_axis=1
+                transitions, key_compress, reward_pessimism, cost_pessimism, ensemble_axis=1
             )
             (
                 backup_critic_loss,
@@ -559,11 +558,6 @@ def make_on_policy_training_step(
             if isinstance(next_obs_pred, jax.Array)
             else next_obs_pred["state"].std(axis=0).mean(-1)
         )  # (B,)
-        
-        transitions.extras["state_extras"]["disagreement"] = jnp.tile(
-            jnp.expand_dims(disagreement, 1), (1, ensemble_size)
-        )
-
         transitions.extras["state_extras"]["cost"] += (
             jnp.expand_dims(disagreement, 1) * cost_pessimism
         )
