@@ -41,6 +41,5 @@ agent:
   
   safety_filter: sooper
   load_from_sbsrl: true
-  load_auxiliaries: true
   
 
