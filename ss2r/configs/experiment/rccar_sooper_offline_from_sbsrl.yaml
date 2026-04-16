@@ -21,7 +21,7 @@ training:
   train_domain_randomization: false
   eval_domain_randomization: false
   safety_budget: 5.0
-  wandb_id: lefqydua # fwpq2mnb,3sg3yciy,v342upwv,f8gf6g3d
+  wandb_id: thb9eh0k # eit9abin,eo77w7ei,6zproq6j,g0nwloi2
   #wandb_id: luy9zpiw #,obclu9x6,6gu2g4n4,6m52xpcs,wo6wb875
 
 agent:
