@@ -4,7 +4,6 @@ defaults:
   - override /agent: mbpo
   - override /agent/data_collection: episodic
   - override /agent/cost_robustness: pessimistic_cost_update
-  - override /agent/penalizer: lagrangian
   - _self_
 
 
@@ -37,20 +36,11 @@ agent:
 
   model_to_real_data_ratio: 1
   safety_discounting: 0.999
-  model_propagation: first
-  penalizer:
-    lagrange_multiplier: 0.5 #range 0.01-2.5
-    penalty_multiplier: 0.001
-    penalty_multiplier_factor: 1e-4
-
 
   pessimism: 0
   optimism: 0
   
-
-  cost_robustness: null
-  use_termination: false
-  safety_filter: null
+  use_termination: true
+  safety_filter: sooper
   load_from_sbsrl: true
   advantage_threshold: null
-  load_auxiliaries: true
