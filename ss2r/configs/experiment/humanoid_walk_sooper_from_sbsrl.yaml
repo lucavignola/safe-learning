@@ -15,7 +15,7 @@ training:
   safety_budget: 100
   num_envs: 1
   num_evals: 20
-  wandb_id: sy8fpqf3 #,u72zbhxj,n8nz5usz,nzzdltwz,z43m4k7s
+  wandb_id: tysnr3fz #,u72zbhxj,n8nz5usz,nzzdltwz,z43m4k7s
 
 
 agent:
