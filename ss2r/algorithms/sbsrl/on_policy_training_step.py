@@ -164,20 +164,51 @@ def make_on_policy_training_step(
         # reward critic update for each ensemble prediction
         _, *ens_keys_reward = jax.random.split(key_critic, ensemble_size + 1)
         ens_keys_reward = jnp.stack(ens_keys_reward)
-        critic_loss, behavior_qr_params, behavior_qr_optimizer_state = critic_update(
-            training_state.behavior_qr_params,
-            training_state.behavior_policy_params,
-            training_state.normalizer_params,
-            training_state.behavior_target_qr_params,
-            alpha,
-            trans_per_ens,
-            ens_keys_reward,
-            reward_q_transform,
-            False,
-            False,
-            optimizer_state=training_state.behavior_qr_optimizer_state,
-            params=training_state.behavior_qr_params,
-        )
+        if not separate_critics:
+            critic_loss, behavior_qr_params, behavior_qr_optimizer_state = critic_update(
+                training_state.behavior_qr_params,
+                training_state.behavior_policy_params,
+                training_state.normalizer_params,
+                training_state.behavior_target_qr_params,
+                alpha,
+                trans_per_ens,
+                ens_keys_reward,
+                reward_q_transform,
+                False,
+                False,
+                optimizer_state=training_state.behavior_qr_optimizer_state,
+                params=training_state.behavior_qr_params,
+            )
+        else:
+            per_member_vmap_qr = jax.vmap(
+                lambda p_i, opt_i, trans_i, key_i, tq_i: critic_update(
+                    p_i,
+                    training_state.behavior_policy_params,
+                    training_state.normalizer_params,
+                    tq_i,
+                    alpha,
+                    trans_i,
+                    key_i,
+                    reward_q_transform,
+                    False,
+                    False,
+                    optimizer_state=opt_i,
+                    params=p_i,
+                ),
+                in_axes=(0, 0, 0, 0, 0),
+            )
+            (
+                critic_loss,
+                behavior_qr_params,
+                behavior_qr_optimizer_state,
+            ) = per_member_vmap_qr(
+                training_state.behavior_qr_params,
+                training_state.behavior_qr_optimizer_state,
+                trans_per_ens,
+                ens_keys_reward,
+                training_state.behavior_target_qr_params,
+            )
+            critic_loss = jnp.mean(critic_loss)
         if save_sooper_backup:
             key_critic, key_compress = jax.random.split(key_critic)
             compressed_transitions = compress_transitions_ensemble(

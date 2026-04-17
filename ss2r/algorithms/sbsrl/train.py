@@ -298,9 +298,7 @@ def _init_training_state(
     policy_optimizer_state = policy_optimizer.init(policy_params)
     if separate_critics or (sbsrl_network.backup_qc_network is not None):
         keys = jax.random.split(key_qr, model_ensemble_size)
-        # Avoid Flax ScopeParamShapeError for BroNet's LayerNorm under vmap
-        qr_params_list = [sbsrl_network.qr_network.init(k) for k in keys]
-        qr_params = jax.tree_util.tree_map(lambda *x: jnp.stack(x), *qr_params_list)
+        qr_params = jax.vmap(lambda k: sbsrl_network.qr_network.init(k))(keys)
         qr_optimizer_state = jax.vmap(lambda p: qr_optimizer.init(p))(qr_params)
     else:
         qr_params = sbsrl_network.qr_network.init(key_qr)
@@ -312,9 +310,9 @@ def _init_training_state(
     if sbsrl_network.qc_network is not None:
         if separate_critics or (sbsrl_network.backup_qc_network is not None):
             keys = jax.random.split(key_qr, model_ensemble_size)
-            # Avoid Flax ScopeParamShapeError for BroNet's LayerNorm under vmap
-            qc_params_list = [sbsrl_network.qc_network.init(k) for k in keys]
-            behavior_qc_params = jax.tree_util.tree_map(lambda *x: jnp.stack(x), *qc_params_list)
+            behavior_qc_params = jax.vmap(lambda k: sbsrl_network.qc_network.init(k))(
+                keys
+            )
             assert qc_optimizer is not None
             behavior_qc_optimizer_state = jax.vmap(lambda p: qc_optimizer.init(p))(
                 behavior_qc_params
@@ -789,11 +787,16 @@ def train(
             alpha_loss, alpha_optimizer, pmap_axis_name=None
         )
     )
-    critic_update = (
-        gradients.gradient_update_fn(  # pytype: disable=wrong-arg-types  # jax-ndarray
-            critic_loss, qr_optimizer, pmap_axis_name=None
+    if separate_critics:
+        critic_update = gradients.gradient_update_fn(
+            critic_loss_separate, qr_optimizer, pmap_axis_name=None
         )
-    )
+    else:
+        critic_update = (
+            gradients.gradient_update_fn(  # pytype: disable=wrong-arg-types  # jax-ndarray
+                critic_loss, qr_optimizer, pmap_axis_name=None
+            )
+        )
     if safe or uncertainty_constraint:
         if separate_critics:
             cost_critic_update = gradients.gradient_update_fn(

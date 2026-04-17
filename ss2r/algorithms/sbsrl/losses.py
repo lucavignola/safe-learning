@@ -231,15 +231,27 @@ def make_losses(
         action = parametric_action_distribution.postprocess(action)
 
         idxs = jnp.arange(ensemble_size, dtype=jnp.int32)
-        qr_action = jax.vmap(
-            lambda i: qr_network.apply(
-                normalizer_params,
-                qr_params,
-                transitions.observation,
-                action,
-                jnp.full((transitions.observation.shape[0],), i, dtype=jnp.int32),
-            )
-        )(idxs)  # (E, B, n_critics)
+        if separate_critics:
+            qr_action = jax.vmap(
+                lambda i, p: qr_network.apply(
+                    normalizer_params,
+                    p,
+                    transitions.observation,
+                    action,
+                    jnp.full((transitions.observation.shape[0],), i, dtype=jnp.int32),
+                ),
+                in_axes=(0, 0),
+            )(idxs, qr_params)  # (E, B, n_critics)
+        else:
+            qr_action = jax.vmap(
+                lambda i: qr_network.apply(
+                    normalizer_params,
+                    qr_params,
+                    transitions.observation,
+                    action,
+                    jnp.full((transitions.observation.shape[0],), i, dtype=jnp.int32),
+                )
+            )(idxs)  # (E, B, n_critics)
 
         if use_bro:
             qr = jnp.mean(qr_action, axis=-1)
