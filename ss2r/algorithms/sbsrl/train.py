@@ -1115,8 +1115,7 @@ def train(
             else:
                 # check by randomly sampling from the experience buffer states
                 # and check which critic of the ensembles is the most pessimistic
-                sample_key, local_key = jax.random.split(local_key)
-                transitions = sac_replay_buffer.sample(sac_buffer_state, sample_key)
+                sac_buffer_state, transitions = sac_replay_buffer.sample(sac_buffer_state)
                 obs = transitions.observation
                 action = transitions.action
                 
@@ -1228,8 +1227,7 @@ def train(
         else:
             # check by randomly sampling from the experience buffer states
             # and check which critic of the ensembles is the most pessimistic
-            sample_key, local_key = jax.random.split(local_key)
-            transitions = sac_replay_buffer.sample(sac_buffer_state, sample_key)
+            sac_buffer_state, transitions = sac_replay_buffer.sample(sac_buffer_state)
             obs = transitions.observation
             action = transitions.action
             
