@@ -1097,20 +1097,73 @@ def train(
         backup_qc_params_to_save = training_state.backup_qc_params
         if (
             save_sooper_backup
-            and separate_critics
-            and ensemble_index >= 0
             and training_state.backup_qr_params is not None
             and training_state.backup_qc_params is not None
             and training_state.behavior_qc_params is not None
         ):
-            backup_qc_params_to_save = _project_member_to_backup_template(
-                training_state.behavior_qc_params,
-                training_state.backup_qc_params,
-                ensemble_index,
-            )
-            training_state = training_state.replace(  # type: ignore[attr-defined]
-                backup_qc_params=backup_qc_params_to_save
-            )
+            if ensemble_index >= 0:
+                backup_qc_params_to_save = _project_member_to_backup_template(
+                    training_state.behavior_qc_params,
+                    training_state.backup_qc_params,
+                    ensemble_index,
+                )
+                backup_qr_params_to_save = _project_member_to_backup_template(
+                    training_state.behavior_qr_params,
+                    training_state.backup_qr_params,
+                    ensemble_index,
+                )
+            else:
+                # check by randomly sampling from the experience buffer states
+                # and check which critic of the ensembles is the most pessimistic
+                sample_key, local_key = jax.random.split(local_key)
+                transitions = sac_replay_buffer.sample(sac_buffer_state, sample_key)
+                obs = transitions.observation
+                action = transitions.action
+                
+                def get_qs(qr_params_model, qc_params_model):
+                    qr_val = sbsrl_network.qr_network.apply(
+                        training_state.normalizer_params,
+                        qr_params_model,
+                        obs,
+                        action,
+                        jnp.zeros((obs.shape[0],), dtype=jnp.int32)
+                    )
+                    qc_val = sbsrl_network.qc_network.apply(
+                        training_state.normalizer_params,
+                        qc_params_model,
+                        obs,
+                        action,
+                        jnp.zeros((obs.shape[0],), dtype=jnp.int32)
+                    )
+                    # average across batch for pessimistic score
+                    # larger cost and lower reward
+                    return jnp.mean(qc_val) - jnp.mean(qr_val)
+
+                # Evaluate each member's pessimism
+                pessimism_scores = jax.vmap(get_qs)(
+                    training_state.behavior_qr_params,
+                    training_state.behavior_qc_params
+                )
+                most_pessimistic_idx = jnp.argmax(pessimism_scores)
+                logging.info(f"Selected model index {most_pessimistic_idx} as most pessimistic for backup (step {current_step}).")
+                
+                # Save it
+                backup_qc_params_to_save = _project_member_to_backup_template(
+                    training_state.behavior_qc_params,
+                    training_state.backup_qc_params,
+                    most_pessimistic_idx,
+                )
+                backup_qr_params_to_save = _project_member_to_backup_template(
+                    training_state.behavior_qr_params,
+                    training_state.backup_qr_params,
+                    most_pessimistic_idx,
+                )
+
+            if separate_critics:
+                training_state = training_state.replace(  # type: ignore[attr-defined]
+                    backup_qc_params=backup_qc_params_to_save,
+                    backup_qr_params=backup_qr_params_to_save,
+                )
 
         # Eval and logging
         if checkpoint_logdir:
