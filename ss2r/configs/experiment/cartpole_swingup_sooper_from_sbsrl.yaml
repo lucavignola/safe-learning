@@ -2,8 +2,8 @@
 defaults:
   - override /environment: cartpole_swingup
   - override /agent: mbpo
+  - override /agent/cost_robustness: pessimistic_cost_update
   - override /agent/data_collection: episodic
-  - override /agent/penalizer: lagrangian
   - _self_
 
 training:
@@ -31,7 +31,7 @@ agent:
   learning_rate: 3e-4
   critic_learning_rate: 3e-4
   model_learning_rate: 3e-4
-  model_to_real_data_ratio: 1
+  model_to_real_data_ratio: 0.5
 
   load_from_sbsrl: true
   pessimism: 1
