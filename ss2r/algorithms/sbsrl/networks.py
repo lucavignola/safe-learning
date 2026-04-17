@@ -282,22 +282,37 @@ def make_sbsrl_networks(
         activation=activation,
         obs_key=policy_obs_key,
     )
-    qr_network = make_q_network_ensemble(
-        observation_size,
-        action_size,
-        preprocess_observations_fn=preprocess_observations_fn,
-        hidden_layer_sizes=value_hidden_layer_sizes,
-        activation=activation,
-        obs_key=value_obs_key,
-        use_bro=use_bro,
-        n_critics=n_critics,
-        n_heads=n_heads,
-        ensemble_size=ensemble_size,
-        embedding_dim=embedding_dim,
-    )
+    if separate_critics or save_sooper_backup:
+        qr_network = make_q_network_separate(
+            observation_size,
+            action_size,
+            preprocess_observations_fn=preprocess_observations_fn,
+            hidden_layer_sizes=value_hidden_layer_sizes,
+            activation=activation,
+            obs_key=value_obs_key,
+            use_bro=use_bro,
+            n_critics=n_critics,
+            n_heads=n_heads,
+            ensemble_size=ensemble_size,
+            embedding_dim=embedding_dim,
+        )
+    else:
+        qr_network = make_q_network_ensemble(
+            observation_size,
+            action_size,
+            preprocess_observations_fn=preprocess_observations_fn,
+            hidden_layer_sizes=value_hidden_layer_sizes,
+            activation=activation,
+            obs_key=value_obs_key,
+            use_bro=use_bro,
+            n_critics=n_critics,
+            n_heads=n_heads,
+            ensemble_size=ensemble_size,
+            embedding_dim=embedding_dim,
+        )
     if safe or uncertainty_constraint:
         n_outputs_qc = int(safe) + int(uncertainty_constraint)
-        if separate_critics:
+        if separate_critics or save_sooper_backup:
             qc_network = make_q_network_separate(
                 observation_size,
                 action_size,

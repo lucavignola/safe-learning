@@ -296,14 +296,19 @@ def _init_training_state(
     alpha_optimizer_state = alpha_optimizer.init(log_alpha)
     policy_params = sbsrl_network.policy_network.init(key_policy)
     policy_optimizer_state = policy_optimizer.init(policy_params)
-    qr_params = sbsrl_network.qr_network.init(key_qr)
-    qr_optimizer_state = qr_optimizer.init(qr_params)
+    if separate_critics or (sbsrl_network.backup_qc_network is not None):
+        keys = jax.random.split(key_qr, model_ensemble_size)
+        qr_params = jax.vmap(lambda k: sbsrl_network.qr_network.init(k))(keys)
+        qr_optimizer_state = jax.vmap(lambda p: qr_optimizer.init(p))(qr_params)
+    else:
+        qr_params = sbsrl_network.qr_network.init(key_qr)
+        qr_optimizer_state = qr_optimizer.init(qr_params)
     init_model_ensemble = jax.vmap(sbsrl_network.model_network.init)
     model_keys = jax.random.split(key_model, model_ensemble_size)
     model_params = init_model_ensemble(model_keys)
     model_optimizer_state = model_optimizer.init(model_params)
     if sbsrl_network.qc_network is not None:
-        if separate_critics:
+        if separate_critics or (sbsrl_network.backup_qc_network is not None):
             keys = jax.random.split(key_qr, model_ensemble_size)
             behavior_qc_params = jax.vmap(lambda k: sbsrl_network.qc_network.init(k))(
                 keys
@@ -1145,19 +1150,69 @@ def train(
     backup_qr_params_to_save = training_state.backup_qr_params
     backup_qc_params_to_save = training_state.backup_qc_params
 
-    # if (
-    #     save_sooper_backup
-    #     and separate_critics
-    #     and ensemble_index >= 0
-    #     and training_state.backup_qr_params is not None
-    #     and training_state.backup_qc_params is not None
-    #     and training_state.behavior_qc_params is not None
-    # ):
-    #     backup_qc_params_to_save = _project_member_to_backup_template(
-    #         training_state.behavior_qc_params,
-    #         training_state.backup_qc_params,
-    #         ensemble_index,
-    #     )
+    if (
+        save_sooper_backup
+        and training_state.backup_qr_params is not None
+        and training_state.backup_qc_params is not None
+        and training_state.behavior_qc_params is not None
+    ):
+        if ensemble_index >= 0:
+            backup_qc_params_to_save = _project_member_to_backup_template(
+                training_state.behavior_qc_params,
+                training_state.backup_qc_params,
+                ensemble_index,
+            )
+            backup_qr_params_to_save = _project_member_to_backup_template(
+                training_state.behavior_qr_params,
+                training_state.backup_qr_params,
+                ensemble_index,
+            )
+        else:
+            # check by randomly sampling from the experience buffer states
+            # and check which critic of the ensembles is the most pessimistic
+            sample_key, local_key = jax.random.split(local_key)
+            transitions = sac_replay_buffer.sample(sac_buffer_state, sample_key)
+            obs = transitions.observation
+            action = transitions.action
+            
+            def get_qs(qr_params_model, qc_params_model):
+                qr_val = sbsrl_network.qr_network.apply(
+                    training_state.normalizer_params,
+                    qr_params_model,
+                    obs,
+                    action,
+                    jnp.zeros((obs.shape[0],), dtype=jnp.int32)
+                )
+                qc_val = sbsrl_network.qc_network.apply(
+                    training_state.normalizer_params,
+                    qc_params_model,
+                    obs,
+                    action,
+                    jnp.zeros((obs.shape[0],), dtype=jnp.int32)
+                )
+                # average across batch for pessimistic score
+                # larger cost and lower reward
+                return jnp.mean(qc_val) - jnp.mean(qr_val)
+
+            # Evaluate each member's pessimism
+            pessimism_scores = jax.vmap(get_qs)(
+                training_state.behavior_qr_params,
+                training_state.behavior_qc_params
+            )
+            most_pessimistic_idx = jnp.argmax(pessimism_scores)
+            logging.info(f"Selected model index {most_pessimistic_idx} as most pessimistic for backup.")
+            
+            # Save it
+            backup_qc_params_to_save = _project_member_to_backup_template(
+                training_state.behavior_qc_params,
+                training_state.backup_qc_params,
+                most_pessimistic_idx,
+            )
+            backup_qr_params_to_save = _project_member_to_backup_template(
+                training_state.behavior_qr_params,
+                training_state.backup_qr_params,
+                most_pessimistic_idx,
+            )
 
     params = (
         training_state.normalizer_params,
