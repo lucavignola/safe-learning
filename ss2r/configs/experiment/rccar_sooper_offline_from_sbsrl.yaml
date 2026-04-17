@@ -36,7 +36,7 @@ agent:
   model_learning_rate: 3e-4
   model_to_real_data_ratio: 0.5
   pessimism: 1
-  optimism: 1
+  optimism: 0
   
   safety_filter: sooper
   load_from_sbsrl: true
