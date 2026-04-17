@@ -16,7 +16,7 @@ training:
   num_envs: 20
   num_evals: 15
   num_eval_episodes: 10
-  wandb_id: wqlpzj0e #,4ne87e1s,651uyrm2,ytjenkjh,10yjpvr3
+  wandb_id: osbz9bph #,4ne87e1s,651uyrm2,ytjenkjh,10yjpvr3
 
 agent:
   policy_hidden_layer_sizes: [256, 256, 256]
@@ -26,22 +26,14 @@ agent:
   min_replay_size: 8192 #1000
   max_replay_size: 1548576
   critic_grad_updates_per_step: 2000
-  model_grad_updates_per_step: 1000
+  model_grad_updates_per_step: 5000
   num_model_rollouts: 100000
   learning_rate: 3e-4
   critic_learning_rate: 3e-4
   model_learning_rate: 3e-4
   model_to_real_data_ratio: 1
 
-    #penalizer:
-    #lagrange_multiplier: 1
-      #penalty_multiplier: 1e-3
-      #penalty_multiplier_factor: 1e-4
-      #lagrange_multiplier_sigma: 0
-
   load_from_sbsrl: true
-  load_auxiliaries: true
-  pessimism: 400
-  optimism: 10
-  advantage_threshold: 0.2
+  pessimism: 1
+  optimism: 0
   safety_filter: sooper
