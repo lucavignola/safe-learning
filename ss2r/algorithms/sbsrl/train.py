@@ -298,8 +298,10 @@ def _init_training_state(
     policy_optimizer_state = policy_optimizer.init(policy_params)
     if separate_critics or (sbsrl_network.backup_qc_network is not None):
         keys = jax.random.split(key_qr, model_ensemble_size)
-        qr_params = jax.vmap(sbsrl_network.qr_network.init)(keys)
-        qr_optimizer_state = jax.vmap(qr_optimizer.init)(qr_params)
+        # Avoid Flax ScopeParamShapeError for BroNet's LayerNorm under vmap
+        qr_params_list = [sbsrl_network.qr_network.init(k) for k in keys]
+        qr_params = jax.tree_util.tree_map(lambda *x: jnp.stack(x), *qr_params_list)
+        qr_optimizer_state = jax.vmap(lambda p: qr_optimizer.init(p))(qr_params)
     else:
         qr_params = sbsrl_network.qr_network.init(key_qr)
         qr_optimizer_state = qr_optimizer.init(qr_params)
@@ -310,9 +312,11 @@ def _init_training_state(
     if sbsrl_network.qc_network is not None:
         if separate_critics or (sbsrl_network.backup_qc_network is not None):
             keys = jax.random.split(key_qr, model_ensemble_size)
-            behavior_qc_params = jax.vmap(sbsrl_network.qc_network.init)(keys)
+            # Avoid Flax ScopeParamShapeError for BroNet's LayerNorm under vmap
+            qc_params_list = [sbsrl_network.qc_network.init(k) for k in keys]
+            behavior_qc_params = jax.tree_util.tree_map(lambda *x: jnp.stack(x), *qc_params_list)
             assert qc_optimizer is not None
-            behavior_qc_optimizer_state = jax.vmap(qc_optimizer.init)(
+            behavior_qc_optimizer_state = jax.vmap(lambda p: qc_optimizer.init(p))(
                 behavior_qc_params
             )
         else:
