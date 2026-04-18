@@ -35,5 +35,5 @@ agent:
 
   load_from_sbsrl: true
   pessimism: 400
-  optimism: 50
+  optimism: 0
   safety_filter: sooper
