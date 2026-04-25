@@ -16,7 +16,7 @@ training:
   num_envs: 20
   num_evals: 15
   num_eval_episodes: 10
-  wandb_id: 5dbg8a25 #,1h64200y,47gzng1b,orcx0qus,6ovax9fx
+  wandb_id: osbz9bph #,1h64200y,47gzng1b,orcx0qus,6ovax9fx
 
 agent:
   policy_hidden_layer_sizes: [256, 256, 256]
@@ -31,7 +31,7 @@ agent:
   learning_rate: 3e-4
   critic_learning_rate: 3e-4
   model_learning_rate: 3e-4
-  model_to_real_data_ratio: 0.75
+  model_to_real_data_ratio: 0.5
 
   penalizer:
     lagrange_multiplier: 0.5

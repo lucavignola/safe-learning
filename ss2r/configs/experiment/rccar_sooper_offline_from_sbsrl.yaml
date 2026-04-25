@@ -21,7 +21,7 @@ training:
   train_domain_randomization: false
   eval_domain_randomization: false
   safety_budget: 5.0
-  wandb_id: lhejicu0 # eit9abin,eo77w7ei,6zproq6j,g0nwloi2
+  wandb_id: lhejicu0 # wmehkwb6,n68ff3ah,pskldinn,lhejicu0
 
 agent:
   batch_size: 256

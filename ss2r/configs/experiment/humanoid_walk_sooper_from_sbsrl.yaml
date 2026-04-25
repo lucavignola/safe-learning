@@ -15,7 +15,7 @@ training:
   safety_budget: 100
   num_envs: 1
   num_evals: 20
-  wandb_id: r2w17872 #,u72zbhxj,n8nz5usz,nzzdltwz,z43m4k7s
+  wandb_id: r2w17872 #,sjn3f4jt,krcu1e2b,skz80gc2,xvektdf3
 
 
 agent:
