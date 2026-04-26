@@ -16,7 +16,7 @@ training:
   safety_budget: 100
   num_envs: 1
   num_evals: 20
-  wandb_id: vzk3xr48 #,z4txn8kg,hpwad9az,uxwvfeu2,nsn5ktly
+  wandb_id: vzk3xr48 #,4ban7xbz,mbs1vmxb,w91boafj,xyvn2sa8
 
 agent:
   policy_hidden_layer_sizes: [256, 256, 256]
@@ -28,7 +28,7 @@ agent:
   min_replay_size: 2000
   max_replay_size: 1048576
   critic_grad_updates_per_step: 2000
-  model_grad_updates_per_step: 5000
+  model_grad_updates_per_step: 1000
   num_model_rollouts: 100000
   learning_rate: 1e-6
   num_critic_updates_per_actor_update: 20
