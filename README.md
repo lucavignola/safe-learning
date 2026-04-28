@@ -4,7 +4,7 @@ A collection of algorithms and experiment tools for safe sim to real transfer an
 
 ## Features
 * Three different CMDP solvers, [CRPO](https://arxiv.org/abs/2011.05869), [Saute-RL](https://arxiv.org/abs/2202.06558) and primal-dual, compatible with (variants of) [Brax's](https://github.com/google/brax) SAC, MBPO and PPO.
-* Algorithm implementation is interchangeable between training in simulation to training on real robots via [OnlineEpisodeOrchestrator](https://github.com/yardenas/safe-sim2real/blob/b1962ac5e453b172eaa8373f8d382b562cf5a03b/ss2r/rl/online.py#L19C7-L19C32). Check out `rccar_experiments` for a full example. Support for training online on any real robot supported by [MuJoCo Playground](https://github.com/google-deepmind/mujoco_playground), including Unitree Go1/2.
+* Algorithm implementation is interchangeable between training in simulation to training on real robots via [OnlineEpisodeOrchestrator](ss2r/rl/online.py). Check out `rccar_experiments` for a full example. Support for training online on any real robot supported by [MuJoCo Playground](https://github.com/google-deepmind/mujoco_playground), including Unitree Go1/2.
 * Fast training. Full compatibility with [MuJoCo Playground](https://github.com/google-deepmind/mujoco_playground). Reimplementation of OpenAI's [Safety Gym](https://github.com/openai/safety-gym) in MJX and safety tasks from [Real-World RL suite](https://github.com/google-research/realworldrl_suite/tree/master).
 
 
@@ -18,7 +18,7 @@ A collection of algorithms and experiment tools for safe sim to real transfer an
 ### Using pip
 
 ```bash
-git clone https://github.com/yardenas/safe-learning
+git clone <anonymous-repo-url>
 cd safe-learning
 python3 -m venv venv
 source venv/bin/activate
@@ -36,7 +36,7 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 Create a project environment and install dependencies:
 
 ```bash
-git clone https://github.com/yardenas/safe-learning
+git clone <anonymous-repo-url>
 cd safe-learning
 uv sync
 uv run python --version  # sanity check, optional
@@ -101,28 +101,9 @@ python train_brax.py +experiment=go1_sim_to_real
 * In `ss2r/docs/videos` you can find videos of 5 trials for each policy, marked by its policy id.
 
 
-## Citation
+## Anonymous Submission
 
-If you find our repository useful in your work, please consider citing:
-
-```bibtex
-@inproceedings{
-  as2025spidrsimpleapproachzeroshot,
-  title={{SP}i{DR}: A Simple Approach for Zero-Shot Safety in Sim-to-Real Transfer},
-  author={Yarden As and Chengrui Qu and Benjamin Unger and Dongho Kang and Max van der Hart and Laixi Shi and Stelian Coros and Adam Wierman and Andreas Krause},
-  booktitle={International Conference on Neural Information Processing Systems},
-  year={2025},
-}
-
-@inproceedings{
-wendl2026safe,
-title={Safe Exploration via Policy Priors},
-author={Manuel Wendl and Yarden As and Manish Prajapat and Anton Pollak and Stelian Coros and Andreas Krause},
-booktitle={The Fourteenth International Conference on Learning Representations},
-year={2026},
-url={https://openreview.net/forum?id=JC8xYAADHL}
-}
-```
+Citation details are omitted in this anonymous submission version.
 
 <!-- ## Learn More
 

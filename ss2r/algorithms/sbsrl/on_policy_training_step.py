@@ -376,7 +376,7 @@ def make_on_policy_training_step(
         carry: Tuple[TrainingState, PRNGKey], transitions: Transition
     ) -> Tuple[Tuple[TrainingState, PRNGKey], Metrics]:
         training_state, key = carry
-        # TODO (yarden): can remove this
+        # Split the key to preserve the existing control flow.
         key, _ = jax.random.split(key)
         transitions = float32(transitions)
         model_loss, model_params, model_optimizer_state = model_update(
@@ -454,9 +454,7 @@ def make_on_policy_training_step(
             disagreement = normalize_fn(
                 disagreement, training_state.disagreement_normalizer_params
             )
-            disagreement = jnp.nan_to_num(
-                disagreement, nan=0.0, posinf=0.0, neginf=0.0
-            )
+            disagreement = jnp.nan_to_num(disagreement, nan=0.0, posinf=0.0, neginf=0.0)
             transitions.extras["state_extras"]["disagreement"] = jnp.full(
                 transitions.reward.shape, disagreement
             )  # (B,ensemble_size)
@@ -502,9 +500,7 @@ def make_on_policy_training_step(
             disagreement = normalize_fn(
                 disagreement, training_state.disagreement_normalizer_params
             )
-            disagreement = jnp.nan_to_num(
-                disagreement, nan=0.0, posinf=0.0, neginf=0.0
-            )
+            disagreement = jnp.nan_to_num(disagreement, nan=0.0, posinf=0.0, neginf=0.0)
             transitions.extras["state_extras"]["disagreement"] = jnp.tile(
                 disagreement, (1, ensemble_size)
             )

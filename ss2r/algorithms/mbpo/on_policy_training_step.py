@@ -235,7 +235,7 @@ def make_on_policy_training_step(
         carry: Tuple[TrainingState, PRNGKey], transitions: Transition
     ) -> Tuple[Tuple[TrainingState, PRNGKey], Metrics]:
         training_state, key = carry
-        # TODO (yarden): can remove this
+        # Split the key to preserve the existing control flow.
         key, _ = jax.random.split(key)
         transitions = float32(transitions)
         model_loss, model_params, model_optimizer_state = model_update(

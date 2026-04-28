@@ -396,7 +396,7 @@ def train(
                 key_envs,
                 (local_devices_to_use, -1) + key_envs.shape[1:],
             )
-            # TODO: move extra reset logic to the AutoResetWrapper.
+            # Move the extra reset logic to the AutoResetWrapper.
             env_state = reset_fn(key_envs) if num_resets_per_eval > 0 else env_state
 
         if process_id == 0:

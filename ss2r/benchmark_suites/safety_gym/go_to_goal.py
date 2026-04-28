@@ -185,7 +185,7 @@ def build_arena(
         lidar.add_lidar_rings(spec)
 
 
-# TODO (yarden): should not depend on mujoco playground eventually
+# This setup should eventually be decoupled from MuJoCo Playground.
 class GoToGoal(mjx_env.MjxEnv):
     def __init__(
         self,
@@ -329,7 +329,7 @@ class GoToGoal(mjx_env.MjxEnv):
         vals = []
         for sensor in BASE_SENSORS:
             sensor_data = mjx_env.get_sensor_data(self.mj_model, data, sensor)
-            # TODO: generalize to multiple robots
+            # Generalize sensor indexing once multiple robot types are supported.
             ids = jp.asarray(_ROBOT_TO_SENSOR_TO_COMPONENTS["point"][sensor])
             sensor_data = sensor_data[ids]
             vals.append(sensor_data)
@@ -491,7 +491,7 @@ def _sample_layout(
             xy, _ = draw_until_valid(
                 key, object_spec.keepout, all_placements, all_keepouts
             )
-            # TODO (yarden): technically should quit if not valid sampling.
+            # Exit early if the sampler cannot produce a valid placement.
             all_placements = all_placements.at[flat_idx, :].set(xy)
             all_keepouts = all_keepouts.at[flat_idx].set(object_spec.keepout)
             layout[name].append((flat_idx, xy))

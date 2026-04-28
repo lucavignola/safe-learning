@@ -462,7 +462,7 @@ def train(
             / (1.0 - safety_discounting)
             * action_repeat
         )
-    budget_scaling_fn = lambda x: x  # TODO:remove this
+    budget_scaling_fn = lambda x: x
     logging.info(f"Episode safety budget: {budget_scaling_fn(safety_budget)}")
     if max_replay_size is None:
         max_replay_size = num_timesteps
