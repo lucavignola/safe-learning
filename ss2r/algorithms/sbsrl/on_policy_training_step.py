@@ -454,6 +454,9 @@ def make_on_policy_training_step(
             disagreement = normalize_fn(
                 disagreement, training_state.disagreement_normalizer_params
             )
+            disagreement = jnp.nan_to_num(
+                disagreement, nan=0.0, posinf=0.0, neginf=0.0
+            )
             transitions.extras["state_extras"]["disagreement"] = jnp.full(
                 transitions.reward.shape, disagreement
             )  # (B,ensemble_size)
@@ -498,6 +501,9 @@ def make_on_policy_training_step(
             )
             disagreement = normalize_fn(
                 disagreement, training_state.disagreement_normalizer_params
+            )
+            disagreement = jnp.nan_to_num(
+                disagreement, nan=0.0, posinf=0.0, neginf=0.0
             )
             transitions.extras["state_extras"]["disagreement"] = jnp.tile(
                 disagreement, (1, ensemble_size)

@@ -509,7 +509,9 @@ def train(
             # Only normalize floating-point types
             if not jnp.issubdtype(data.dtype, jnp.inexact):
                 return data
-            data = data / std
+            safe_std = jnp.maximum(std, jnp.asarray(1e-6, dtype=std.dtype))
+            data = data / safe_std
+            data = jnp.nan_to_num(data, nan=0.0, posinf=0.0, neginf=0.0)
             if max_abs_value is not None:
                 data = jnp.clip(data, -max_abs_value, +max_abs_value)
             return data
