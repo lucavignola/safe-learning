@@ -7,18 +7,32 @@ The next sections provide instructions for reproducing the deep reinforcement le
 
 ### Running Experiments
 
-All experiments are configured via [Hydra](https://hydra.cc/) configuration files located in `ss2r/configs/experiments/`. To train a policy with a specific configuration, use the `train_brax.py` script:
+All experiments are configured via [Hydra](https://hydra.cc/) configuration files located in `ss2r/configs/experiment/`. To train a policy with a specific configuration, use the `train_brax.py` script:
 
 ```bash
 python train_brax.py +experiment=<experiment_name>
 ```
 
+#### Offline-to-Online experiments in Simulation
+
+For reproducing the offline-to-online experiments described in Appendix of the paper, the following pipeline must be followed
+1. For the desired environment, launch the config in `ss2r/configs/experiment/` that contains `collect` (or `simple`) in its name, making sure that the flag `store_buffer` is set to true. This will collect the prior data that will be used to initialize our offline-to-online pipeline.
+2. Launch the config in `ss2r/configs/experiment/` that contains `offline` in its name, making sure that the flag `offline` is set to true, and modifying `training.wandb_id` so that it points to the artifact of the run that was used to collect data in the previous step. This will run SBSRL in offline mode, effectively building the prior that will be used to initialize our online algorithm and all the baselines.
+3. Finally launch the online version of SBSRL or the desired baseline, using the remaining configs in `ss2r/configs/experiment/` and setting `training.wandb_id` to target the artifact of the offline run. For the baselines, e.g. MBPO and SOOPER, make sure to set the flag `load_from_sbsrl` to true, so as to start from the same offline prior as SBSRL, ensuring fair comparison.
+   
+
+#### Hardware Experiments
+
+The code for reproducing the hardware experiments presented in the paper can be found in `ss2r/rccar_experiments/`. Note that `ss2r/train_brax.py` can be launched on a separate machine where training will be performed, using the configs in `ss2r/configs/experiment/` containing the keyword `hardware`. Launching `ss2r/rccar_experiments/online_learning.py` on the real robot will then rely on `ss2r/rl/online.py` to deploy the policy on hardware.
+Finally, note that the offline-to-online pipeline described in the previous subsection must be followed also for the hardware experiments.
+
+
 ### Hyperparameter Details
 
 All hyperparameters used in the experiments can be found in the corresponding configuration files under `ss2r/configs/`. The configuration hierarchy includes:
 - **Agent configs** (`ss2r/configs/agent/`): Algorithm-specific parameters (SBSRL, CRPO, Saute-RL, SAC, MBPO, PPO)
-- **Benchmark configs** (`ss2r/configs/benchmark/`): Environment-specific settings
-- **Experiment configs** (`ss2r/configs/experiments/`): Complete experiment definitions combining agent and benchmark configurations
+- **Benchmark configs** (`ss2r/configs/environment/`): Environment-specific settings
+- **Experiment configs** (`ss2r/configs/experiment/`): Complete experiment definitions combining agent and benchmark configurations
 - **Hydra configs** (`ss2r/configs/hydra/`): System-level settings (launcher, job logging)
 
 Each configuration file is self-documenting and contains all parameters necessary to reproduce the reported results.
@@ -30,10 +44,6 @@ Each configuration file is self-documenting and contains all parameters necessar
 ### Environment Details
 
 The experiments require Python 3.11.6 and the dependencies listed in `pyproject.toml`. The environment can be set up following the [Installation](#installation) instructions below.
-
-### Hardware Experiments
-
-The code used for launching the hardware experiments presented in the paper can be found in `ss2r/rccar_experiments/`
 
 ## Additional Features
 * Three different CMDP solvers, [CRPO](https://arxiv.org/abs/2011.05869), [Saute-RL](https://arxiv.org/abs/2202.06558) and primal-dual, compatible with (variants of) [Brax's](https://github.com/google/brax) SAC, MBPO and PPO.
