@@ -1,8 +1,41 @@
 
-# Safe Learning on Real Robots
-A collection of algorithms and experiment tools for safe sim to real transfer and learning in robotics.
+# SBSRL: Deep experiments
 
-## Features
+This anonymous repository contains the code for SBSRL and the deep reinforcement learning experiments presented in the paper, along with implementations of other baseline algorithms for comparison. The codebase is designed for both simulation-based experiments and real robot deployment.
+
+The next sections provide instructions for reproducing the deep reinforcement learning experiments presented in the paper.
+
+### Running Experiments
+
+All experiments are configured via [Hydra](https://hydra.cc/) configuration files located in `ss2r/configs/experiments/`. To train a policy with a specific configuration, use the `train_brax.py` script:
+
+```bash
+python train_brax.py +experiment=<experiment_name>
+```
+
+### Hyperparameter Details
+
+All hyperparameters used in the experiments can be found in the corresponding configuration files under `ss2r/configs/`. The configuration hierarchy includes:
+- **Agent configs** (`ss2r/configs/agent/`): Algorithm-specific parameters (SBSRL, CRPO, Saute-RL, SAC, MBPO, PPO)
+- **Benchmark configs** (`ss2r/configs/benchmark/`): Environment-specific settings
+- **Experiment configs** (`ss2r/configs/experiments/`): Complete experiment definitions combining agent and benchmark configurations
+- **Hydra configs** (`ss2r/configs/hydra/`): System-level settings (launcher, job logging)
+
+Each configuration file is self-documenting and contains all parameters necessary to reproduce the reported results.
+
+### Installation Notes
+
+**Note**: For this paper you can skip the optional `madrona_mjx` installation step described in the [Installation](#installation) section. The basic installation via `pip` or `uv` is sufficient.
+
+### Environment Details
+
+The experiments require Python 3.11.6 and the dependencies listed in `pyproject.toml`. The environment can be set up following the [Installation](#installation) instructions below.
+
+### Hardware Experiments
+
+The code used for launching the hardware experiments presented in the paper can be found in `ss2r/rccar_experiments/`
+
+## Additional Features
 * Three different CMDP solvers, [CRPO](https://arxiv.org/abs/2011.05869), [Saute-RL](https://arxiv.org/abs/2202.06558) and primal-dual, compatible with (variants of) [Brax's](https://github.com/google/brax) SAC, MBPO and PPO.
 * Algorithm implementation is interchangeable between training in simulation to training on real robots via [OnlineEpisodeOrchestrator](ss2r/rl/online.py). Check out `rccar_experiments` for a full example. Support for training online on any real robot supported by [MuJoCo Playground](https://github.com/google-deepmind/mujoco_playground), including Unitree Go1/2.
 * Fast training. Full compatibility with [MuJoCo Playground](https://github.com/google-deepmind/mujoco_playground). Reimplementation of OpenAI's [Safety Gym](https://github.com/openai/safety-gym) in MJX and safety tasks from [Real-World RL suite](https://github.com/google-research/realworldrl_suite/tree/master).
@@ -48,7 +81,7 @@ Some benchmarks (e.g., the MJX-based pick-and-place tasks) require the custom
 [`madrona_mjx`](https://github.com/shacklettbp/madrona_mjx) fork. Build and
 install it inside the UV environment you created above:
 
-1. From the parent directory of `safe-sim2real`, clone the repository and check
+1. From the parent directory of `<anonymous-repo>`, clone the repository and check
    out the tested commit:
 
    ```bash
@@ -89,19 +122,8 @@ library.
   export MADRONA_BVH_KERNEL_CACHE=/path/to/cache/bvh
   ```
 
-## Usage
 
-Our code uses [Hydra](https://hydra.cc/) to configure experiments. Each experiment is defined as a `yaml` file in `ss2r/configs/experiments`. For example, to train a Unitree Go1 policy with a constraint on joint limit:
-
-```bash
-python train_brax.py +experiment=go1_sim_to_real
-```
-## Docs
-* Policies (in `onnx` format) used for the Unitree Go1 experiments can be found in `ss2r/docs/policies`.
-* In `ss2r/docs/videos` you can find videos of 5 trials for each policy, marked by its policy id.
-
-
-## Anonymous Submission
+##  Citation
 
 Citation details are omitted in this anonymous submission version.
 
