@@ -21,7 +21,7 @@ training:
   num_evals: 15
   num_eval_envs: 128
   render: false
-  wandb_id: vy32nbw2 #,2tthiu0u,8eco0qql,jqpm5u37,ndt75g5x
+  wandb_id: 4qm28rmc #,1j71wu6d,eiio6ebd,z8dokf60,8cfm9r1g
 
 agent:
   activation: swish
@@ -36,6 +36,7 @@ agent:
   model_grad_updates_per_step: 1000
   num_model_rollouts: 100000
   num_critic_updates_per_actor_update: 1
+  model_to_real_data_ratio: 0.1
   penalizer:
     lagrange_multiplier: 2.5
     penalty_multiplier: 1e-3

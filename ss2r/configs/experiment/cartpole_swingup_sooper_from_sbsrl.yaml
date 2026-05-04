@@ -16,7 +16,7 @@ training:
   num_envs: 20
   num_evals: 15
   num_eval_episodes: 10
-  wandb_id: osbz9bph #,4ne87e1s,651uyrm2,ytjenkjh,10yjpvr3
+  wandb_id: osbz9bph #,6keh03au,a7seqjhn,asghpdun,uiuipd42
 
 agent:
   policy_hidden_layer_sizes: [256, 256, 256]

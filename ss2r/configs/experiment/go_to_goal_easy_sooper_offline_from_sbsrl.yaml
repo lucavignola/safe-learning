@@ -15,7 +15,7 @@ training:
   action_repeat: 4
   num_envs: 1
   num_evals: 20
-  wandb_id: 4m93buti # ...
+  wandb_id: 4m93buti # disypcs0,rwy64n6s,qhtxv7s5,70eq4vme
 
 agent:
   policy_hidden_layer_sizes: [256, 256, 256]
